@@ -1,0 +1,29 @@
+{
+	"tasks": [
+		{
+			"type": "cppbuild",
+			"label": "g++ build active file",
+			"command": "make", //主要这里是make命令
+			"options": {
+				"cwd": "${fileDirname}"
+			},
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": "build",
+			"detail": "调试器生成的任务。"
+		},
+		{ //删除二进制文件
+			"type": "shell",
+			"label": "delete output file",
+			"command": "make", //这个是make clean 命令
+			"args": [
+				""
+			],
+			"presentation": {
+				"reveal": "silent", //删除过程不切换终端（专注程序输出）
+			}
+		}
+	],
+	"version": "2.0.0"
+}
