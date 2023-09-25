@@ -9,7 +9,7 @@ The process of completing Assigment01 is exciting. A lot of details in the inter
   - If a parse tree is produced in the previous step, converting it into an AST tree
   - Interpreting the AST tree to evaluate results(checking the rest of grammar errors, like a variable been referenced before its definition)
 
-- focus more on the operations
+- focus more on the operations (assign02 - stage1)
   - add control flow to the programming language
     - the while's environment should be cleared after per cycle 
   - add functions
