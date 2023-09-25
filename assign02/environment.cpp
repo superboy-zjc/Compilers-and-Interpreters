@@ -23,9 +23,16 @@ Value Environment::lookup(const std::string &name, const Location &loc) const
   else
     SemanticError::raise(loc, "Variable not defined: '%s'", name.c_str());
 }
+void Environment::define(const std::string &name, const Value &value)
+{
+  m_map[name] = value;
+}
 
 void Environment::define(const std::string &name, const Value &value, const Location &loc)
 {
+  auto it = m_map.find(name);
+  if (it != m_map.end())
+    SemanticError::raise(loc, "Variable defined duplicately: '%s'", name.c_str());
   m_map[name] = value;
 }
 
@@ -37,4 +44,9 @@ void Environment::assign(const std::string &name, const Value &value, const Loca
     m_parent->assign(name, value, loc);
   else
     SemanticError::raise(loc, "Variable not defined: '%s'", name.c_str());
+}
+
+void Environment::clear()
+{
+  m_map.clear();
 }

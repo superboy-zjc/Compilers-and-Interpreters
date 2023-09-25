@@ -143,7 +143,20 @@ Node *Lexer::read_token()
     Node *tok = read_continued_token(TOK_IDENTIFIER, lexeme, line, col, isalnum);
     // TODO: use set_tag to change the token kind if it's actually a keyword
     /* 2h0ng */
-    match_keyword(tok);
+    // match_keyword(tok);
+    if (tok != nullptr)
+    {
+      if (tok->get_str() == "var")
+        tok->set_tag(TokenKind::TOK_VAR);
+      else if (tok->get_str() == "function")
+        tok->set_tag(TokenKind::TOK_FUNC);
+      else if (tok->get_str() == "if")
+        tok->set_tag(TokenKind::TOK_IF);
+      else if (tok->get_str() == "else")
+        tok->set_tag(TokenKind::TOK_ELSE);
+      else if (tok->get_str() == "while")
+        tok->set_tag(TokenKind::TOK_WHILE);
+    }
     /**/
     return tok;
   }
@@ -183,6 +196,13 @@ Node *Lexer::read_token()
       return read_continued_two_digits_token(TOK_ERROR, TOK_OR, lexeme, line, col, '|');
     case '&':
       return read_continued_two_digits_token(TOK_ERROR, TOK_AND, lexeme, line, col, '&');
+    // assign02
+    case '{':
+      return token_create(TOK_LBRACE, lexeme, line, col);
+    case '}':
+      return token_create(TOK_RBRACE, lexeme, line, col);
+    case ',':
+      return token_create(TOK_COMMA, lexeme, line, col);
     default:
       SyntaxError::raise(get_current_loc(), "Unrecognized character '%c'", c);
     }
@@ -225,13 +245,13 @@ Node *Lexer::read_continued_token(enum TokenKind kind, const std::string &lexeme
 
 // TODO: implement additional member functions if necessary
 
-void Lexer::match_keyword(Node *tok)
-{
-  if (tok != nullptr && tok->get_str() == "var")
-  {
-    tok->set_tag(TokenKind::TOK_VAR);
-  }
-}
+// void Lexer::match_keyword(Node *tok)
+// {
+//   if (tok != nullptr && tok->get_str() == "var")
+//   {
+//     tok->set_tag(TokenKind::TOK_VAR);
+//   }
+// }
 
 /* zhong */
 Node *Lexer::read_continued_two_digits_token(enum TokenKind original_kind, enum TokenKind kind, const std::string &lexeme_start, int line, int col, char a)

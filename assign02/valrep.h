@@ -9,12 +9,14 @@ class Function;
 // of a Value. ValReps are reference counted, so many Values
 // can point to the same ValRep.
 
-enum ValRepKind {
+enum ValRepKind
+{
   VALREP_FUNCTION,
   // other kinds of valreps (e.g., vector, string, etc.) could be added
 };
 
-class ValRep {
+class ValRep
+{
 private:
   ValRepKind m_kind;
   int m_refcount;
@@ -37,8 +39,12 @@ public:
   // (as returned by get_num_refs()) becomes 0, the ValRep object
   // should be deleted (because there are no longer any Value
   // objects pointing to it.)
-  void add_ref()           { ++m_refcount; }
-  void remove_ref()        { assert(m_refcount > 0); --m_refcount; }
+  void add_ref() { ++m_refcount; }
+  void remove_ref()
+  {
+    assert(m_refcount > 0);
+    --m_refcount;
+  }
   int get_num_refs() const { return m_refcount; }
 
   // It's useful to have functions that return a pointer to

@@ -1,0 +1,10 @@
+var a;
+var b;
+
+a = 1;
+b = 11;
+function c (e, f) {
+d;
+}
+print(c(1,2));
+

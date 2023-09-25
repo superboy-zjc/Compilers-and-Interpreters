@@ -83,6 +83,9 @@ int execute(int argc, char **argv)
       // Print a text representation of the AST
       ASTTreePrint tp;
       tp.print(ast.get());
+      // debug
+      Interpreter interp(ast.release());
+      interp.analyze();
     }
     else if (mode == EXECUTE)
     {

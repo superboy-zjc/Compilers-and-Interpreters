@@ -7,8 +7,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/minilang",
             "args": [
-                "-p",
-                "test.txt"
+                "/home/ubuntu/interpreters/fall2023-tests/assign02/input/control10.in"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

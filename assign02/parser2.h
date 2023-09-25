@@ -19,12 +19,19 @@ public:
 private:
   // Parse functions for nonterminal grammar symbols
   Node *parse_Unit();
+  Node *parse_TStmt();
+  Node *parse_Func();
+  Node *parse_OptPList(Node *ast);
+  Node *parse_PList(Node *ast);
   Node *parse_Stmt();
+  Node *parse_SList(Node *ast);
   Node *parse_E();
   Node *parse_EPrime(Node *ast);
   Node *parse_T();
   Node *parse_TPrime(Node *ast);
   Node *parse_F();
+  Node *parse_OptArgList(Node *ast);
+  Node *parse_ArgList(Node *ast);
   // Assignment 1
   Node *parse_A();
   Node *parse_L();

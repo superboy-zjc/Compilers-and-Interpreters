@@ -27,6 +27,14 @@ enum TokenKind
   TOK_EQ,
   TOK_NEQ,
   //
+  TOK_FUNC,
+  TOK_IF,
+  TOK_ELSE,
+  TOK_WHILE,
+  TOK_LBRACE,
+  TOK_RBRACE,
+  TOK_COMMA,
+  //
   TOK_ERROR
 };
 

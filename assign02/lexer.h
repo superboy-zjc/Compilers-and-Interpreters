@@ -41,7 +41,7 @@ private:
   Node *token_create(enum TokenKind kind, const std::string &lexeme, int line, int col);
   Node *read_continued_token(enum TokenKind kind, const std::string &lexeme_start, int line, int col, int (*pred)(int));
   // TODO: add additional member functions if necessary
-  void match_keyword(Node *tok);
+  // void match_keyword(Node *tok);
   Node *read_two_digits_token(enum TokenKind original_kind, enum TokenKind kind, const std::string &lexeme_start, int line, int col, char a);
   Node *read_continued_two_digits_token(enum TokenKind original_kind, enum TokenKind kind, const std::string &lexeme_start, int line, int col, char a);
   /*

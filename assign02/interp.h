@@ -21,10 +21,18 @@ public:
   Value execute();
 
   void analyzeNode(const Node &node);
+  void analyzeNode(const Node &node, Environment *cur_env);
+  static Value intrinsic_print(Value args[], unsigned num_args,
+                               const Location &loc, Interpreter *interp);
+  static Value intrinsic_println(Value args[], unsigned num_args,
+                                 const Location &loc, Interpreter *interp);
+  static Value intrinsic_readint(Value args[], unsigned num_args,
+                                 const Location &loc, Interpreter *interp);
 
 private:
   // TODO: private member functions
   Value evaluate(const Node &node);
+  Value evaluate(const Node &node, Environment *cur_env);
 };
 
 #endif // INTERP_H

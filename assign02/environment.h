@@ -26,7 +26,9 @@ public:
   // TODO: add member functions allowing lookup, definition, and assignment
   Value lookup(const std::string &name, const Location &loc) const;
   void define(const std::string &name, const Value &value, const Location &loc);
+  void define(const std::string &name, const Value &value);
   void assign(const std::string &name, const Value &value, const Location &loc);
+  void clear();
 };
 
 #endif // ENVIRONMENT_H
