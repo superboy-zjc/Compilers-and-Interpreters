@@ -3,8 +3,10 @@
 
 #include <cassert>
 #include <string>
+
 class ValRep;
 class Function;
+class Array;
 
 enum ValueKind
 {
@@ -17,6 +19,7 @@ enum ValueKind
   // object (drived from ValRep)
   VALUE_FUNCTION,
   // could add other kinds of dynamic values here
+  VALUE_ARRAY
 };
 
 // Typedef of the signature of an intrinsic function.
@@ -52,6 +55,7 @@ public:
   Value(int ival = 0);
   Value(Function *fn);
   Value(IntrinsicFn intrinsic_fn);
+  Value(Array *arr);
   Value(const Value &other);
   ~Value();
 
@@ -75,7 +79,7 @@ public:
   // }
 
   Function *get_function() const;
-
+  Array *get_array() const;
   IntrinsicFn get_intrinsic_fn() const
   {
     assert(m_kind == VALUE_INTRINSIC_FN);

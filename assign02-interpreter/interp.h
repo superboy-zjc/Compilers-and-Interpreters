@@ -28,6 +28,19 @@ public:
                                  const Location &loc, Interpreter *interp);
   static Value intrinsic_readint(Value args[], unsigned num_args,
                                  const Location &loc, Interpreter *interp);
+  // for array operation
+  static Value intrinsic_mkarr(Value args[], unsigned num_args,
+                               const Location &loc, Interpreter *interp);
+  static Value intrinsic_len(Value args[], unsigned num_args,
+                             const Location &loc, Interpreter *interp);
+  static Value intrinsic_get(Value args[], unsigned num_args,
+                             const Location &loc, Interpreter *interp);
+  static Value intrinsic_set(Value args[], unsigned num_args,
+                             const Location &loc, Interpreter *interp);
+  static Value intrinsic_push(Value args[], unsigned num_args,
+                              const Location &loc, Interpreter *interp);
+  static Value intrinsic_pop(Value args[], unsigned num_args,
+                             const Location &loc, Interpreter *interp);
 
 private:
   // TODO: private member functions

@@ -7,7 +7,8 @@
 class Environment;
 class Node;
 
-class Function : public ValRep {
+class Function : public ValRep
+{
 private:
   std::string m_name;
   std::vector<std::string> m_params;

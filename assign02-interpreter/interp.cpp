@@ -5,6 +5,7 @@
 #include "node.h"
 #include "exceptions.h"
 #include "function.h"
+#include "array.h"
 #include "interp.h"
 #include "ast.h"
 
@@ -14,6 +15,12 @@ Interpreter::Interpreter(Node *ast_to_adopt)
   m_env.define("print", Value(&intrinsic_print));
   m_env.define("println", Value(&intrinsic_println));
   m_env.define("readint", Value(&intrinsic_readint));
+  m_env.define("mkarr", Value(&intrinsic_mkarr));
+  m_env.define("len", Value(&intrinsic_len));
+  m_env.define("get", Value(&intrinsic_get));
+  m_env.define("set", Value(&intrinsic_set));
+  m_env.define("push", Value(&intrinsic_push));
+  m_env.define("pop", Value(&intrinsic_pop));
 }
 
 Interpreter::~Interpreter()
@@ -120,7 +127,11 @@ Value Interpreter::evaluate(const Node &node, Environment *cur_env)
     Node *body = node.get_kid(2);
 
     // initialize fn_name, param_names, and body ...
-    Value fn_val(new Function(fn_name, param_names, cur_env, body));
+    Function *init_function = new Function(fn_name, param_names, cur_env, body);
+    // add refer count to the dynamic type of data
+    init_function->add_ref();
+    // assign the function object to Value object
+    Value fn_val(init_function);
     cur_env->define(fn_name, fn_val, node.get_loc());
     return Value();
   }
@@ -170,7 +181,8 @@ Value Interpreter::evaluate(const Node &node, Environment *cur_env)
   }
   else if (node.get_tag() == AST_IF || node.get_tag() == AST_IF_ELSE)
   {
-    std::unique_ptr<Environment> c_env(new Environment(cur_env));
+    std::unique_ptr<Environment> if_env(new Environment(cur_env));
+    std::unique_ptr<Environment> else_env(new Environment(cur_env));
     // if statement's condition belong to the current environment;
     Value res = evaluate(*node.get_kid(0), cur_env);
     if (!res.is_numeric())
@@ -179,19 +191,14 @@ Value Interpreter::evaluate(const Node &node, Environment *cur_env)
     }
     else if (res.get_ival() != 0)
     {
-      evaluate(*node.get_kid(1), c_env.get());
-      return Value(0);
+      evaluate(*node.get_kid(1), if_env.get());
     }
     else if (res.get_ival() == 0 && node.get_tag() == AST_IF_ELSE)
     {
-      std::unique_ptr<Environment> else_env(new Environment(cur_env));
       evaluate(*node.get_kid(2), else_env.get());
-      return Value(0);
     }
-    else
-    {
-      return Value(0);
-    }
+
+    return Value(0);
   }
   else if (node.get_tag() == AST_WHILE)
   {
@@ -315,4 +322,112 @@ Value Interpreter::intrinsic_readint(Value args[], unsigned num_args,
   {
     EvaluationError::raise(loc, "Error:  Invalid input!\n");
   }
+}
+
+Value Interpreter::intrinsic_mkarr(Value args[], unsigned num_args,
+                                   const Location &loc, Interpreter *interp)
+{
+  std::vector<int> arr = {};
+  // initialize fn_name, param_names, and body ...
+  Array *init_array = new Array(arr);
+  // add refer count to the dynamic type of data
+  init_array->add_ref();
+  // assign the function object to Value object
+
+  if (num_args > 0)
+  {
+    for (unsigned int i = 0; i < num_args; i++)
+    {
+      if (args[i].get_kind() != VALUE_INT)
+      {
+        EvaluationError::raise(loc, "Error: Invalid array element type!\n");
+      }
+      init_array->push(args[i].get_ival());
+    }
+  }
+  return Value(init_array);
+}
+Value Interpreter::intrinsic_len(Value args[], unsigned num_args,
+                                 const Location &loc, Interpreter *interp)
+{
+  if (num_args != 1 || args[0].get_kind() != VALUE_ARRAY)
+  {
+    EvaluationError::raise(loc, "Wrong number or type of arguments passed to len function");
+  }
+  return Value(args[0].get_array()->get_length());
+}
+Value Interpreter::intrinsic_get(Value args[], unsigned num_args,
+                                 const Location &loc, Interpreter *interp)
+{
+  if (num_args != 2)
+  {
+    EvaluationError::raise(loc, "Wrong number of arguments passed to get function");
+  }
+  if (args[0].get_kind() != VALUE_ARRAY || args[1].get_kind() != VALUE_INT)
+  {
+    EvaluationError::raise(loc, "Wrong type of arguments passed to get function");
+  }
+  Array *arr = args[0].get_array();
+  int index = args[1].get_ival();
+  if (arr->get_length() < index + 1)
+  {
+    EvaluationError::raise(loc, "Wrong index of array passed to get function, the index doesn't exsit");
+  }
+  return Value(arr->get_member(index));
+}
+Value Interpreter::intrinsic_set(Value args[], unsigned num_args,
+                                 const Location &loc, Interpreter *interp)
+{
+  if (num_args != 3)
+  {
+    EvaluationError::raise(loc, "Wrong number of arguments passed to get function");
+  }
+
+  if (args[0].get_kind() != VALUE_ARRAY || args[1].get_kind() != VALUE_INT || args[2].get_kind() != VALUE_INT)
+  {
+    EvaluationError::raise(loc, "Wrong type of arguments passed to get function");
+  }
+
+  Array *arr = args[0].get_array();
+  int index = args[1].get_ival();
+  int value = args[2].get_ival();
+  if (arr->get_length() < index + 1)
+  {
+    EvaluationError::raise(loc, "Wrong index of array passed to get function, the index doesn't exsit");
+  }
+  arr->set_member(index, value);
+  return Value();
+}
+Value Interpreter::intrinsic_push(Value args[], unsigned num_args,
+                                  const Location &loc, Interpreter *interp)
+{
+  if (num_args != 2)
+  {
+    EvaluationError::raise(loc, "Wrong number of arguments passed to get function");
+  }
+
+  if (args[0].get_kind() != VALUE_ARRAY || args[1].get_kind() != VALUE_INT)
+  {
+    EvaluationError::raise(loc, "Wrong type of arguments passed to get function");
+  }
+  Array *arr = args[0].get_array();
+  int value = args[1].get_ival();
+  arr->push(value);
+  return Value();
+}
+Value Interpreter::intrinsic_pop(Value args[], unsigned num_args,
+                                 const Location &loc, Interpreter *interp)
+{
+  if (num_args != 1)
+  {
+    EvaluationError::raise(loc, "Wrong number of arguments passed to get function");
+  }
+
+  if (args[0].get_kind() != VALUE_ARRAY)
+  {
+    EvaluationError::raise(loc, "Wrong type of arguments passed to get function");
+  }
+  Array *arr = args[0].get_array();
+  arr->pop();
+  return Value();
 }
