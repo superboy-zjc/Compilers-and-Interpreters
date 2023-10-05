@@ -1,10 +1,12 @@
 var a;
 var b;
-
+var d;
 a = 1;
 b = 11;
+d = mkarr(1);
 function c (e, f) {
-d;
+a;
 }
+print(d);
 print(c(1,2));
 
