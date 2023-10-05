@@ -428,6 +428,11 @@ Value Interpreter::intrinsic_pop(Value args[], unsigned num_args,
     EvaluationError::raise(loc, "Wrong type of arguments passed to get function");
   }
   Array *arr = args[0].get_array();
+  if (arr->get_length() < 1)
+  {
+    EvaluationError::raise(loc, "The array cannot pop");
+  }
+
   arr->pop();
   return Value();
 }
