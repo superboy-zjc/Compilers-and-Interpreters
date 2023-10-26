@@ -7,14 +7,18 @@
 // Type implementation
 ////////////////////////////////////////////////////////////////////////
 
-Type::Type() {
+Type::Type()
+{
 }
 
-Type::~Type() {
+Type::~Type()
+{
 }
 
-const Member *Type::find_member(const std::string &name) const {
-  for (unsigned i = 0; i < get_num_members(); ++i) {
+const Member *Type::find_member(const std::string &name) const
+{
+  for (unsigned i = 0; i < get_num_members(); ++i)
+  {
     const Member &member = get_member(i);
     if (member.get_name() == name)
       return &member;
@@ -22,68 +26,87 @@ const Member *Type::find_member(const std::string &name) const {
   return nullptr;
 }
 
-const Type *Type::get_unqualified_type() const {
+const Type *Type::get_unqualified_type() const
+{
   // only QualifiedType will need to override this member function
   return this;
 }
 
-bool Type::is_basic() const {
+bool Type::is_basic() const
+{
+  return false;
+}
+bool Type::is_long() const
+{
+  return false;
+}
+bool Type::is_void() const
+{
   return false;
 }
 
-bool Type::is_void() const {
+bool Type::is_struct() const
+{
   return false;
 }
 
-bool Type::is_struct() const {
+bool Type::is_pointer() const
+{
   return false;
 }
 
-bool Type::is_pointer() const {
+bool Type::is_array() const
+{
   return false;
 }
 
-bool Type::is_array() const {
+bool Type::is_function() const
+{
   return false;
 }
 
-bool Type::is_function() const {
+bool Type::is_volatile() const
+{
   return false;
 }
 
-bool Type::is_volatile() const {
+bool Type::is_const() const
+{
   return false;
 }
 
-bool Type::is_const() const {
-  return false;
-}
-
-BasicTypeKind Type::get_basic_type_kind() const {
+BasicTypeKind Type::get_basic_type_kind() const
+{
   RuntimeError::raise("not a BasicType");
 }
 
-bool Type::is_signed() const {
+bool Type::is_signed() const
+{
   RuntimeError::raise("not a BasicType");
 }
 
-void Type::add_member(const Member &member) {
+void Type::add_member(const Member &member)
+{
   RuntimeError::raise("type does not have members");
 }
 
-unsigned Type::get_num_members() const {
+unsigned Type::get_num_members() const
+{
   RuntimeError::raise("type does not have members");
 }
 
-const Member &Type::get_member(unsigned index) const {
+const Member &Type::get_member(unsigned index) const
+{
   RuntimeError::raise("type does not have members");
 }
 
-std::shared_ptr<Type> Type::get_base_type() const {
+std::shared_ptr<Type> Type::get_base_type() const
+{
   RuntimeError::raise("type does not have a base type");
 }
 
-unsigned Type::get_array_size() const {
+unsigned Type::get_array_size() const
+{
   RuntimeError::raise("not an ArrayType");
 }
 
@@ -92,13 +115,16 @@ unsigned Type::get_array_size() const {
 ////////////////////////////////////////////////////////////////////////
 
 HasBaseType::HasBaseType(const std::shared_ptr<Type> &base_type)
-  : m_base_type(base_type) {
+    : m_base_type(base_type)
+{
 }
 
-HasBaseType::~HasBaseType() {
+HasBaseType::~HasBaseType()
+{
 }
 
-std::shared_ptr<Type> HasBaseType::get_base_type() const {
+std::shared_ptr<Type> HasBaseType::get_base_type() const
+{
   return m_base_type;
 }
 
@@ -107,18 +133,21 @@ std::shared_ptr<Type> HasBaseType::get_base_type() const {
 ////////////////////////////////////////////////////////////////////////
 
 Member::Member(const std::string &name, const std::shared_ptr<Type> &type)
-  : m_name(name)
-  , m_type(type) {
+    : m_name(name), m_type(type)
+{
 }
 
-Member::~Member() {
+Member::~Member()
+{
 }
 
-const std::string &Member::get_name() const {
+const std::string &Member::get_name() const
+{
   return m_name;
 }
 
-std::shared_ptr<Type> Member::get_type() const {
+std::shared_ptr<Type> Member::get_type() const
+{
   return m_type;
 }
 
@@ -126,16 +155,20 @@ std::shared_ptr<Type> Member::get_type() const {
 // HasMembers implementation
 ////////////////////////////////////////////////////////////////////////
 
-HasMembers::HasMembers() {
+HasMembers::HasMembers()
+{
 }
 
-HasMembers::~HasMembers() {
+HasMembers::~HasMembers()
+{
 }
 
-std::string HasMembers::as_str() const {
+std::string HasMembers::as_str() const
+{
   std::string s;
 
-  for (unsigned i = 0; i < get_num_members(); ++i) {
+  for (unsigned i = 0; i < get_num_members(); ++i)
+  {
     if (i > 0)
       s += ", ";
     const Member &member = get_member(i);
@@ -146,9 +179,11 @@ std::string HasMembers::as_str() const {
     // but it handles simple cases like "struct Node *next;".
 
     bool member_is_recursive = false;
-    if (member.get_type()->is_pointer()) {
+    if (member.get_type()->is_pointer())
+    {
       std::shared_ptr<Type> base_type = member.get_type()->get_base_type();
-      if (base_type.get() == this) {
+      if (base_type.get() == this)
+      {
         member_is_recursive = true;
         const StructType *struct_type = dynamic_cast<const StructType *>(this);
         assert(struct_type != nullptr);
@@ -163,15 +198,18 @@ std::string HasMembers::as_str() const {
   return s;
 }
 
-void HasMembers::add_member(const Member &member) {
+void HasMembers::add_member(const Member &member)
+{
   m_members.push_back(member);
 }
 
-unsigned HasMembers::get_num_members() const {
+unsigned HasMembers::get_num_members() const
+{
   return unsigned(m_members.size());
 }
 
-const Member &HasMembers::get_member(unsigned index) const {
+const Member &HasMembers::get_member(unsigned index) const
+{
   assert(index < m_members.size());
   return m_members[index];
 }
@@ -181,14 +219,16 @@ const Member &HasMembers::get_member(unsigned index) const {
 ////////////////////////////////////////////////////////////////////////
 
 QualifiedType::QualifiedType(const std::shared_ptr<Type> &delegate, TypeQualifier type_qualifier)
-  : HasBaseType(delegate)
-  , m_type_qualifier(type_qualifier) {
+    : HasBaseType(delegate), m_type_qualifier(type_qualifier)
+{
 }
 
-QualifiedType::~QualifiedType() {
+QualifiedType::~QualifiedType()
+{
 }
 
-bool QualifiedType::is_same(const Type *other) const {
+bool QualifiedType::is_same(const Type *other) const
+{
   // see whether type qualifiers differ, if they do, return false
   if (is_const() != other->is_const())
     return false;
@@ -199,7 +239,8 @@ bool QualifiedType::is_same(const Type *other) const {
   return get_unqualified_type()->is_same(other->get_unqualified_type());
 }
 
-std::string QualifiedType::as_str() const {
+std::string QualifiedType::as_str() const
+{
   std::string s;
   assert(is_const() || is_volatile());
   s += is_const() ? "const " : "volatile ";
@@ -207,71 +248,88 @@ std::string QualifiedType::as_str() const {
   return s;
 }
 
-const Type *QualifiedType::get_unqualified_type() const {
+const Type *QualifiedType::get_unqualified_type() const
+{
   return get_base_type()->get_unqualified_type();
 }
 
-bool QualifiedType::is_basic() const {
+bool QualifiedType::is_basic() const
+{
   return get_base_type()->is_basic();
 }
 
-bool QualifiedType::is_void() const {
+bool QualifiedType::is_void() const
+{
   return get_base_type()->is_void();
 }
 
-bool QualifiedType::is_struct() const {
+bool QualifiedType::is_struct() const
+{
   return get_base_type()->is_struct();
 }
 
-bool QualifiedType::is_pointer() const {
+bool QualifiedType::is_pointer() const
+{
   return get_base_type()->is_pointer();
 }
 
-bool QualifiedType::is_array() const {
+bool QualifiedType::is_array() const
+{
   return get_base_type()->is_array();
 }
 
-bool QualifiedType::is_function() const {
+bool QualifiedType::is_function() const
+{
   return get_base_type()->is_function();
 }
 
-bool QualifiedType::is_volatile() const {
+bool QualifiedType::is_volatile() const
+{
   return m_type_qualifier == TypeQualifier::VOLATILE;
 }
 
-bool QualifiedType::is_const() const {
+bool QualifiedType::is_const() const
+{
   return m_type_qualifier == TypeQualifier::CONST;
 }
 
-BasicTypeKind QualifiedType::get_basic_type_kind() const {
+BasicTypeKind QualifiedType::get_basic_type_kind() const
+{
   return get_base_type()->get_basic_type_kind();
 }
 
-bool QualifiedType::is_signed() const {
+bool QualifiedType::is_signed() const
+{
   return get_base_type()->is_signed();
 }
 
-void QualifiedType::add_member(const Member &member) {
+void QualifiedType::add_member(const Member &member)
+{
   get_base_type()->add_member(member);
 }
 
-unsigned QualifiedType::get_num_members() const {
+unsigned QualifiedType::get_num_members() const
+{
   return get_base_type()->get_num_members();
 }
 
-const Member &QualifiedType::get_member(unsigned index) const {
+const Member &QualifiedType::get_member(unsigned index) const
+{
   return get_base_type()->get_member(index);
 }
 
-unsigned QualifiedType::get_array_size() const {
+unsigned QualifiedType::get_array_size() const
+{
   return get_base_type()->get_array_size();
 }
 
-unsigned QualifiedType::get_storage_size() const {
+unsigned QualifiedType::get_storage_size() const
+{
   return get_base_type()->get_storage_size();
 }
 
-unsigned QualifiedType::get_alignment() const {
+unsigned QualifiedType::get_alignment() const
+{
   return get_base_type()->get_alignment();
 }
 
@@ -280,36 +338,44 @@ unsigned QualifiedType::get_alignment() const {
 ////////////////////////////////////////////////////////////////////////
 
 BasicType::BasicType(BasicTypeKind kind, bool is_signed)
-  : m_kind(kind)
-  , m_is_signed(is_signed) {
+    : m_kind(kind), m_is_signed(is_signed)
+{
 }
 
-BasicType::~BasicType() {
+BasicType::~BasicType()
+{
 }
 
-bool BasicType::is_same(const Type *other) const {
+bool BasicType::is_same(const Type *other) const
+{
   if (!other->is_basic())
     return false;
-  return m_kind == other->get_basic_type_kind()
-      && m_is_signed == other->is_signed();
+  return m_kind == other->get_basic_type_kind() && m_is_signed == other->is_signed();
 }
 
-std::string BasicType::as_str() const {
+std::string BasicType::as_str() const
+{
   std::string s;
 
   if (!is_signed())
     s += "unsigned ";
-  switch (m_kind) {
+  switch (m_kind)
+  {
   case BasicTypeKind::CHAR:
-    s += "char"; break;
+    s += "char";
+    break;
   case BasicTypeKind::SHORT:
-    s += "short"; break;
+    s += "short";
+    break;
   case BasicTypeKind::INT:
-    s += "int"; break;
+    s += "int";
+    break;
   case BasicTypeKind::LONG:
-    s += "long"; break;
+    s += "long";
+    break;
   case BasicTypeKind::VOID:
-    s += "void"; break;
+    s += "void";
+    break;
   default:
     assert(false);
   }
@@ -317,35 +383,51 @@ std::string BasicType::as_str() const {
   return s;
 }
 
-bool BasicType::is_basic() const {
+bool BasicType::is_basic() const
+{
   return true;
 }
 
-bool BasicType::is_void() const {
+bool BasicType::is_void() const
+{
   return m_kind == BasicTypeKind::VOID;
 }
 
-BasicTypeKind BasicType::get_basic_type_kind() const {
+bool BasicType::is_long() const
+{
+  return m_kind == BasicTypeKind::LONG;
+}
+
+BasicTypeKind BasicType::get_basic_type_kind() const
+{
   return m_kind;
 }
 
-bool BasicType::is_signed() const {
+bool BasicType::is_signed() const
+{
   return m_is_signed;
 }
 
-unsigned BasicType::get_storage_size() const {
-  switch (m_kind) {
-  case BasicTypeKind::CHAR: return 1;
-  case BasicTypeKind::SHORT: return 2;
-  case BasicTypeKind::INT: return 4;
-  case BasicTypeKind::LONG: return 8;
+unsigned BasicType::get_storage_size() const
+{
+  switch (m_kind)
+  {
+  case BasicTypeKind::CHAR:
+    return 1;
+  case BasicTypeKind::SHORT:
+    return 2;
+  case BasicTypeKind::INT:
+    return 4;
+  case BasicTypeKind::LONG:
+    return 8;
   default:
     assert(false);
     return 0;
   }
 }
 
-unsigned BasicType::get_alignment() const {
+unsigned BasicType::get_alignment() const
+{
   return get_storage_size();
 }
 
@@ -354,17 +436,19 @@ unsigned BasicType::get_alignment() const {
 ////////////////////////////////////////////////////////////////////////
 
 StructType::StructType(const std::string &name)
-  : m_name(name)
-  , m_storage_size(0U)
-  , m_alignment(0U) {
+    : m_name(name), m_storage_size(0U), m_alignment(0U)
+{
 }
 
-StructType::~StructType() {
+StructType::~StructType()
+{
 }
 
-bool StructType::is_same(const Type *other) const {
+bool StructType::is_same(const Type *other) const
+{
   // Trivial base case that avoids infinite recursion for recursive types
-  if (this == other) return true;
+  if (this == other)
+    return true;
 
   // In general, it should not be possible for two struct types
   // with the same name to exist in the same translation unit.
@@ -373,7 +457,6 @@ bool StructType::is_same(const Type *other) const {
 
   if (!other->is_struct())
     return false;
-
 
   const StructType *other_st = dynamic_cast<const StructType *>(other);
   if (m_name != other_st->m_name)
@@ -384,7 +467,8 @@ bool StructType::is_same(const Type *other) const {
 
   if (get_num_members() != other->get_num_members())
     RuntimeError::raise("struct types with same name but different numbers of members");
-  for (unsigned i = 0; i < get_num_members(); ++i) {
+  for (unsigned i = 0; i < get_num_members(); ++i)
+  {
     const Member &left = get_member(i);
     const Member &right = other->get_member(i);
 
@@ -398,7 +482,8 @@ bool StructType::is_same(const Type *other) const {
   return true;
 }
 
-std::string StructType::as_str() const {
+std::string StructType::as_str() const
+{
   std::string s;
 
   s += "struct ";
@@ -410,25 +495,30 @@ std::string StructType::as_str() const {
   return s;
 }
 
-bool StructType::is_struct() const {
+bool StructType::is_struct() const
+{
   return true;
 }
 
-unsigned StructType::get_storage_size() const {
+unsigned StructType::get_storage_size() const
+{
   if (m_storage_size == 0U)
     calculate_storage();
   return m_storage_size;
 }
 
-unsigned StructType::get_alignment() const {
+unsigned StructType::get_alignment() const
+{
   if (m_alignment == 0U)
     calculate_storage();
   return m_alignment;
 }
 
-void StructType::calculate_storage() const {
+void StructType::calculate_storage() const
+{
   StorageCalculator scalc;
-  for (unsigned i = 0; i < get_num_members(); ++i) {
+  for (unsigned i = 0; i < get_num_members(); ++i)
+  {
     const Member &member = get_member(i);
     scalc.add_field(member.get_type());
   }
@@ -442,13 +532,16 @@ void StructType::calculate_storage() const {
 ////////////////////////////////////////////////////////////////////////
 
 FunctionType::FunctionType(const std::shared_ptr<Type> &base_type)
-  : HasBaseType(base_type) {
+    : HasBaseType(base_type)
+{
 }
 
-FunctionType::~FunctionType() {
+FunctionType::~FunctionType()
+{
 }
 
-bool FunctionType::is_same(const Type *other) const {
+bool FunctionType::is_same(const Type *other) const
+{
   if (!other->is_function())
     return false;
 
@@ -461,7 +554,8 @@ bool FunctionType::is_same(const Type *other) const {
     return false;
 
   // see if parameter types are the same
-  for (unsigned i = 0; i < get_num_members(); ++i) {
+  for (unsigned i = 0; i < get_num_members(); ++i)
+  {
     if (!get_member(i).get_type()->is_same(other->get_member(i).get_type().get()))
       return false;
   }
@@ -469,7 +563,8 @@ bool FunctionType::is_same(const Type *other) const {
   return true;
 }
 
-std::string FunctionType::as_str() const {
+std::string FunctionType::as_str() const
+{
   std::string s;
 
   s += "function (";
@@ -480,15 +575,18 @@ std::string FunctionType::as_str() const {
   return s;
 }
 
-bool FunctionType::is_function() const {
+bool FunctionType::is_function() const
+{
   return true;
 }
 
-unsigned FunctionType::get_storage_size() const {
+unsigned FunctionType::get_storage_size() const
+{
   RuntimeError::raise("a function does not have a storage size");
 }
 
-unsigned FunctionType::get_alignment() const {
+unsigned FunctionType::get_alignment() const
+{
   RuntimeError::raise("a function does not have an alignment");
 }
 
@@ -497,20 +595,24 @@ unsigned FunctionType::get_alignment() const {
 ////////////////////////////////////////////////////////////////////////
 
 PointerType::PointerType(const std::shared_ptr<Type> &base_type)
-  : HasBaseType(base_type) {
+    : HasBaseType(base_type)
+{
 }
 
-PointerType::~PointerType() {
+PointerType::~PointerType()
+{
 }
 
-bool PointerType::is_same(const Type *other) const {
+bool PointerType::is_same(const Type *other) const
+{
   if (!other->is_pointer())
     return false;
 
   return get_base_type()->is_same(other->get_base_type().get());
 }
 
-std::string PointerType::as_str() const {
+std::string PointerType::as_str() const
+{
   std::string s;
 
   s += "pointer to ";
@@ -519,15 +621,18 @@ std::string PointerType::as_str() const {
   return s;
 }
 
-bool PointerType::is_pointer() const {
+bool PointerType::is_pointer() const
+{
   return true;
 }
 
-unsigned PointerType::get_storage_size() const {
+unsigned PointerType::get_storage_size() const
+{
   return 8U;
 }
 
-unsigned PointerType::get_alignment() const {
+unsigned PointerType::get_alignment() const
+{
   return 8U;
 }
 
@@ -536,14 +641,16 @@ unsigned PointerType::get_alignment() const {
 ////////////////////////////////////////////////////////////////////////
 
 ArrayType::ArrayType(const std::shared_ptr<Type> &base_type, unsigned size)
-  : HasBaseType(base_type)
-  , m_size(size) {
+    : HasBaseType(base_type), m_size(size)
+{
 }
 
-ArrayType::~ArrayType() {
+ArrayType::~ArrayType()
+{
 }
 
-bool ArrayType::is_same(const Type *other) const {
+bool ArrayType::is_same(const Type *other) const
+{
   // Note: the only reason comparison of ArrayTypes might be useful
   // is for comparing pointers to arrays. In theory these
   // could arise if a function has a parameter whose declared type
@@ -553,11 +660,11 @@ bool ArrayType::is_same(const Type *other) const {
     return false;
 
   const ArrayType *other_at = dynamic_cast<const ArrayType *>(other);
-  return m_size == other_at->m_size
-      && get_base_type()->is_same(other->get_base_type().get());
+  return m_size == other_at->m_size && get_base_type()->is_same(other->get_base_type().get());
 }
 
-std::string ArrayType::as_str() const {
+std::string ArrayType::as_str() const
+{
   std::string s;
 
   s += "array of ";
@@ -568,18 +675,22 @@ std::string ArrayType::as_str() const {
   return s;
 }
 
-bool ArrayType::is_array() const {
+bool ArrayType::is_array() const
+{
   return true;
 }
 
-unsigned ArrayType::get_array_size() const {
+unsigned ArrayType::get_array_size() const
+{
   return m_size;
 }
 
-unsigned ArrayType::get_storage_size() const {
+unsigned ArrayType::get_storage_size() const
+{
   return get_base_type()->get_storage_size() * m_size;
 }
 
-unsigned ArrayType::get_alignment() const {
+unsigned ArrayType::get_alignment() const
+{
   return get_base_type()->get_alignment();
 }

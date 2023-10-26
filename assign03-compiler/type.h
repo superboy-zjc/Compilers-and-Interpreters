@@ -75,6 +75,7 @@ public:
   // subtype tests (safe to call on any Type object)
   virtual bool is_basic() const;
   virtual bool is_void() const;
+  virtual bool is_long() const;
   virtual bool is_struct() const;
   virtual bool is_pointer() const;
   virtual bool is_array() const;
@@ -223,6 +224,7 @@ public:
   virtual std::string as_str() const;
   virtual bool is_basic() const;
   virtual bool is_void() const;
+  virtual bool is_long() const;
   virtual BasicTypeKind get_basic_type_kind() const;
   virtual bool is_signed() const;
   virtual unsigned get_storage_size() const;

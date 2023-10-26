@@ -9,13 +9,15 @@
 
 class SymbolTable;
 
-enum class SymbolKind {
+enum class SymbolKind
+{
   FUNCTION,
   VARIABLE,
   TYPE,
 };
 
-class Symbol {
+class Symbol
+{
 private:
   SymbolKind m_kind;
   std::string m_name;
@@ -43,12 +45,13 @@ public:
   bool is_defined() const;
 };
 
-class SymbolTable {
+class SymbolTable
+{
 private:
   SymbolTable *m_parent;
   std::vector<Symbol *> m_symbols;
   std::map<std::string, unsigned> m_lookup;
-  bool m_has_params; // true if this symbol table contains function parameters
+  bool m_has_params;               // true if this symbol table contains function parameters
   std::shared_ptr<Type> m_fn_type; // this is set to the type of the enclosing function (if any)
 
   // value semantics prohibited
@@ -71,7 +74,7 @@ public:
   Symbol *lookup_local(const std::string &name) const;
   Symbol *declare(SymbolKind sym_kind, const std::string &name, const std::shared_ptr<Type> &type);
   Symbol *define(SymbolKind sym_kind, const std::string &name, const std::shared_ptr<Type> &type);
-
+  Symbol *define_no_print(SymbolKind sym_kind, const std::string &name, const std::shared_ptr<Type> &type);
   // Iterate through the symbol table entries in the order in which they were added
   // to the symbol table. This is important for struct types, where the representation
   // of the type needs to record the fields (and their types) in the exact order
@@ -93,9 +96,11 @@ public:
   // a return statement, to make sure that the value returned is
   // assignment-compatible with the function's return type.
   std::shared_ptr<Type> get_fn_type() const;
+  bool remove_symbol(const std::string &name);
 
 private:
   void add_symbol(Symbol *sym);
+  void add_symbol_no_print(Symbol *sym);
   int get_depth() const;
 };
 

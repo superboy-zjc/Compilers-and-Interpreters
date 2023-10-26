@@ -41,6 +41,8 @@ public:
   virtual void visit_array_element_ref_expression(Node *n);
   virtual void visit_variable_ref(Node *n);
   virtual void visit_literal_value(Node *n);
+  Node *promote_to_int(Node *n);
+  Node *implicit_conversion(Node *n, const std::shared_ptr<Type> &type);
 
 private:
   // TODO: add helper functions

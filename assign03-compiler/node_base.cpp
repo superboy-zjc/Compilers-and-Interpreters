@@ -53,7 +53,17 @@ Symbol *NodeBase::get_symbol() const
 {
     return m_symbol;
 }
-
+bool NodeBase::has_type() const
+{
+    // this shouldn't be called unless there is actually a type
+    // associated with this node
+    if (has_symbol())
+        return true; // Symbol will definitely have a valid Type
+    else
+    {
+        return m_type != nullptr;
+    }
+}
 std::shared_ptr<Type> NodeBase::get_type() const
 {
     // this shouldn't be called unless there is actually a type
@@ -67,3 +77,6 @@ std::shared_ptr<Type> NodeBase::get_type() const
         return m_type;
     }
 }
+
+void NodeBase::set_lvalue(bool flag) { m_lvalue = flag; }
+bool NodeBase::if_lvalue() { return m_lvalue; }

@@ -4,7 +4,8 @@
 #include <cstdint>
 #include "location.h"
 
-enum class LiteralValueKind {
+enum class LiteralValueKind
+{
   NONE,
   INTEGER,
   CHARACTER,
@@ -13,7 +14,8 @@ enum class LiteralValueKind {
 
 // Helper class for representing literal values (integer, character,
 // and string)
-class LiteralValue {
+class LiteralValue
+{
 private:
   LiteralValueKind m_kind;
   int64_t m_intval;
