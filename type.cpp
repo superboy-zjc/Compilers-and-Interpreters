@@ -100,6 +100,12 @@ const Member &Type::get_member(unsigned index) const
   RuntimeError::raise("type does not have members");
 }
 
+// assign04
+void Type::set_member_offset(unsigned index, unsigned storage_offset)
+{
+  RuntimeError::raise("type does not have members");
+}
+
 std::shared_ptr<Type> Type::get_base_type() const
 {
   RuntimeError::raise("type does not have a base type");
@@ -212,6 +218,11 @@ const Member &HasMembers::get_member(unsigned index) const
 {
   assert(index < m_members.size());
   return m_members[index];
+}
+void HasMembers::set_member_offset(unsigned index, unsigned storage_offset)
+{
+  assert(index < m_members.size());
+  m_members[index].set_storage_offset(storage_offset);
 }
 
 ////////////////////////////////////////////////////////////////////////
