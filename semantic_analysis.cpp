@@ -283,6 +283,8 @@ void SemanticAnalysis::visit_function_definition(Node *n)
     Member member(symbol->get_name(), symbol->get_type());
     m_cur_symtab->get_parent()->lookup_local(name)->get_type()->add_member(member);
   }
+  // store symbol for assign04
+  // n->set_symbol(m_cur_symtab->get_parent()->lookup_local(name));
   // parse the function statement lists
   visit(n->get_kid(3));
   // step out of the block of definition of function parameters
@@ -766,16 +768,17 @@ void SemanticAnalysis::visit_array_element_ref_expression(Node *n)
   // visit variable ref
   std::shared_ptr<Type> res;
   Node *array_ref = n->get_kid(0);
-  visit(array_ref);
+  // traversal array base node and index node
+  visit_children(n);
   std::shared_ptr<Type> array_type;
   // debug
-  if (!n->get_kid(0)->has_type())
+  if (!array_ref->has_type())
   {
     array_type = std::make_shared<BasicType>(BasicTypeKind::INT, true);
   }
   else
   {
-    array_type = n->get_kid(0)->get_type();
+    array_type = array_ref->get_type();
   }
 
   // if (!array_ref->get_type()->is_array())
