@@ -262,7 +262,15 @@ void HighLevelCodegen::visit_binary_expression(Node *n)
       Operand memref = emit_pointer_arithmetric(opd1, opd2, opd1_type->get_base_type(), opd2_type);
       std::shared_ptr<Type> src_type = opd1_type->get_base_type();
 
-      n->set_operand(emit_basic_opt(HINS_mov_b, tmp_dst, memref, src_type));
+      tmp_dst = emit_basic_opt(HINS_mov_b, tmp_dst, memref, src_type);
+      if (!n->if_lvalue())
+      {
+        n->set_operand(tmp_dst);
+      }
+      else
+      {
+        n->set_operand(tmp_dst.memref_to());
+      }
     }
     else
     {
@@ -446,8 +454,7 @@ void HighLevelCodegen::visit_variable_ref(Node *n)
     // if lvalue, generate a sequence of instructions to compute the exact address of the referenced lvalue.
     Operand lvalue_opd(Operand::VREG, get_next_local_vreg());
     m_hl_iseq->append(new Instruction(HighLevelOpcode::HINS_localaddr, lvalue_opd, Operand(Operand::IMM_IVAL, cur_sym->get_storage_location())));
-    lvalue_opd.to_memref();
-    n->set_operand(lvalue_opd);
+    n->set_operand(lvalue_opd.to_memref());
   }
   else
   {

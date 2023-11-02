@@ -34,6 +34,8 @@ private:
   unsigned int m_stored_location;
   bool m_stored_in_vreg;
   StorageType m_storage_type;
+  // address
+  bool m_address_taken = false;
   //
 
   // value semantics prohibited
@@ -60,6 +62,16 @@ public:
   StorageType get_storage_type() const;
   void set_storage_location(unsigned int stored_location);
   unsigned int get_storage_location() const;
+  void taken_address(bool flag)
+  {
+    m_address_taken = flag;
+  };
+  // taken address
+  bool if_taken()
+  {
+    return m_address_taken;
+  };
+
   // // for calulating memory allocated for function definition
   // unsigned int get_memory_storage_size() const
   // {

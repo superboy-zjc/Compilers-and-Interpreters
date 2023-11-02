@@ -626,6 +626,7 @@ void SemanticAnalysis::visit_unary_expression(Node *n)
         std::shared_ptr<Type> opd = std::make_shared<PointerType>(opd->get_base_type());
       }
       res = std::make_shared<PointerType>(opd);
+      opd_node->get_symbol()->taken_address(true);
       n->set_lvalue(false);
     }
   }

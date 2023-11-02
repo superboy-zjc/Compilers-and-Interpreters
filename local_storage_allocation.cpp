@@ -39,8 +39,17 @@ void LocalStorageAllocation::visit_declarator_list(Node *n)
     else
     {
       // others should be stored into a virtual register, e.g. intergal, pointers whose address has not been taken
-      cur_sym->set_storage_type(StorageType::VREG);
-      cur_sym->set_storage_location(get_next_local_vreg());
+      if (cur_sym->if_taken())
+      {
+        cur_sym->set_storage_type(StorageType::MEM);
+        cur_sym->set_storage_location(m_storage_calc.add_field(type));
+      }
+      else
+      {
+        cur_sym->set_storage_type(StorageType::VREG);
+        cur_sym->set_storage_location(get_next_local_vreg());
+      }
+
       // used_local_vregs++;
     }
     // // store the total allocated memory size for each variable
@@ -151,23 +160,23 @@ void LocalStorageAllocation::visit_struct_type_definition(Node *n)
   }
 }
 
-void LocalStorageAllocation::visit_unary_expression(Node *n)
-{
-  // // TODO: implement
-  Node *opd_node = n->get_kid(1);
-  Symbol *cur_sym = opd_node->get_symbol();
-  std::shared_ptr<Type> type = cur_sym->get_type();
+// void LocalStorageAllocation::visit_unary_expression(Node *n)
+// {
+//   // // TODO: implement
+//   Node *opd_node = n->get_kid(1);
+//   Symbol *cur_sym = opd_node->get_symbol();
+//   std::shared_ptr<Type> type = cur_sym->get_type();
 
-  Node *opt = n->get_kid(0);
-  // &, if the address of a variable has been taken, it should be stored in the stack frame
-  if (opt->get_tag() == TOK_AMPERSAND)
-  {
-    if (cur_sym->get_storage_type() == StorageType::VREG)
-    {
-      cur_sym->set_storage_type(StorageType::MEM);
-      cur_sym->set_storage_location(m_storage_calc.add_field(type));
-    }
-    printf("/* %s is stored in the %d, at the offset of %d */ \n", cur_sym->get_name().c_str(), cur_sym->get_storage_type(), cur_sym->get_storage_location());
-  }
-}
+//   Node *opt = n->get_kid(0);
+//   // &, if the address of a variable has been taken, it should be stored in the stack frame
+//   if (opt->get_tag() == TOK_AMPERSAND)
+//   {
+//     if (cur_sym->get_storage_type() == StorageType::VREG)
+//     {
+//       cur_sym->set_storage_type(StorageType::MEM);
+//       cur_sym->set_storage_location(m_storage_calc.add_field(type));
+//     }
+//     printf("/* %s is stored in the %d, at the offset of %d */ \n", cur_sym->get_name().c_str(), cur_sym->get_storage_type(), cur_sym->get_storage_location());
+//   }
+// }
 // TODO: implement private member functions
