@@ -239,6 +239,8 @@ void HighLevelCodegen::visit_binary_expression(Node *n)
   // visit_children(n);
   Node *opd1_node = n->get_kid(1);
   Node *opd2_node = n->get_kid(2);
+  std::shared_ptr<Type> opd1_type = opd1_node->get_type();
+  std::shared_ptr<Type> opd2_type = opd2_node->get_type();
   visit(opd1_node);
   visit(opd2_node);
   Operand opd1 = opd1_node->get_operand();
@@ -247,31 +249,33 @@ void HighLevelCodegen::visit_binary_expression(Node *n)
   Node *opt = n->get_kid(0);
   if (opt->get_tag() == TOK_ASSIGN)
   {
-    // unsigned int vreg = get_next_local_vreg();
-    //  Operand dest(Operand::VREG, vreg);
-    //   get two operand
-
     // generate instructions, temporarily use opd1 as implicit converstions
-    HighLevelOpcode opcode = get_opcode(HINS_mov_b, opd1_node->get_type());
-    m_hl_iseq->append(new Instruction(opcode, opd1, opd2));
-    n->set_operand(opd1);
+    n->set_operand(emit_basic_opt(HINS_mov_b, opd1, opd2, opd1_type));
   }
   else if (opt->get_tag() == TOK_PLUS || opt->get_tag() == TOK_MINUS || opt->get_tag() == TOK_ASTERISK || opt->get_tag() == TOK_LOGICAL_AND || opt->get_tag() == TOK_LOGICAL_OR)
   {
-    unsigned int vreg = get_next_local_vreg();
-    Operand dest(Operand::VREG, vreg);
-    // get two operand
+    // pointer arithmetic
+    if ((opd1_node->get_type()->is_array() || opd1_node->get_type()->is_pointer()) && opd2_node->get_type()->is_integral())
+    {
+      // memref of pointer arithmetic computation
+      Operand tmp_dst(Operand::VREG, get_next_local_vreg());
+      Operand memref = emit_pointer_arithmetric(opd1, opd2, opd1_type->get_base_type(), opd2_type);
+      std::shared_ptr<Type> src_type = opd1_type->get_base_type();
 
-    // generate instructions, temporarily use opd1 as implicit converstions
-    HighLevelOpcode opcode = get_opcode(HINS_add_b, opd1_node->get_type());
-    m_hl_iseq->append(new Instruction(opcode, dest, opd1, opd2));
-    n->set_operand(dest);
+      n->set_operand(emit_basic_opt(HINS_mov_b, tmp_dst, memref, src_type));
+    }
+    else
+    {
+      Operand tmp_dst(Operand::VREG, get_next_local_vreg());
+      std::shared_ptr<Type> src_type = n->get_type();
+
+      // generate instructions, temporarily use opd1 as implicit converstions
+      n->set_operand(emit_basic_opt(HINS_add_b, tmp_dst, opd1, opd2, src_type));
+    }
   }
   else if (opt->get_tag() == TOK_GTE || opt->get_tag() == TOK_GT || opt->get_tag() == TOK_LTE || opt->get_tag() == TOK_LT || opt->get_tag() == TOK_EQUALITY)
   {
-    unsigned int vreg = get_next_local_vreg();
     HighLevelOpcode optcode;
-    Operand dest(Operand::VREG, vreg);
     switch (opt->get_tag())
     {
     case TOK_GTE:
@@ -293,11 +297,10 @@ void HighLevelCodegen::visit_binary_expression(Node *n)
       RuntimeError::raise("unkown unary operation");
       break;
     }
-    // generate instructions, temporarily use opd1 as implicit converstions
-    HighLevelOpcode opcode = get_opcode(optcode, opd1_node->get_type());
     // cmpXX_
-    m_hl_iseq->append(new Instruction(opcode, dest, opd1, opd2));
-    n->set_operand(dest);
+    // generate instructions, temporarily use opd1 as implicit converstions
+    Operand tmp_dst(Operand::VREG, get_next_local_vreg());
+    n->set_operand(emit_basic_opt(optcode, tmp_dst, opd1, opd2, opd1_type));
   }
   // // recover virtual registers
   set_cur_vreg(saved_vreg);
@@ -376,11 +379,10 @@ void HighLevelCodegen::visit_function_call_expression(Node *n)
 
   visit(n->get_kid(1));
   // assign arguments to virtual register
-  // Symbol *cur_sym;
   for (auto i = n->get_kid(1)->cbegin(); i != n->get_kid(1)->cend(); ++i)
   {
     Node *func_parameter = *i;
-    // cur_sym = func_parameter->get_symbol();
+
     unsigned int arg_vreg = get_next_arg_vreg();
     Operand param_opd = func_parameter->get_operand();
     // decay a array variable memref into a pointer -> func_a(arr) /
@@ -388,22 +390,7 @@ void HighLevelCodegen::visit_function_call_expression(Node *n)
     {
       param_opd = param_opd.memref_to();
     }
-    // if (cur_sym->get_storage_type() == StorageType::VREG)
-    // {
-    //   // Operand param_opd(Operand::VREG, cur_sym->get_storage_location());
-    //   //  arg virtual reg
-    //   mov_opcode = get_opcode(HINS_mov_b, func_parameter->get_type());
-    //   m_hl_iseq->append(new Instruction(mov_opcode, Operand(Operand::VREG, arg_vreg), func_parameter->get_operand()));
-    // }
-    // else if (cur_sym->get_storage_type() == StorageType::MEM)
-    // {
-    // Operand param_opd(Operand::VREG, get_next_local_vreg());
-    // m_hl_iseq->append(new Instruction(HighLevelOpcode::HINS_localaddr, param_opd, Operand(Operand::IMM_IVAL, cur_sym->get_storage_location())));
-
-    // arg virtual reg
-    // mov_opcode = get_opcode(HINS_mov_b, func_parameter->get_type());
     m_hl_iseq->append(new Instruction(HighLevelOpcode::HINS_mov_q, Operand(Operand::VREG, arg_vreg), param_opd));
-    // }
   }
   // call instruction
   m_hl_iseq->append(new Instruction(HINS_call, Operand(Operand::LABEL, func_name)));
@@ -431,62 +418,17 @@ void HighLevelCodegen::visit_indirect_field_ref_expression(Node *n)
 void HighLevelCodegen::visit_array_element_ref_expression(Node *n)
 {
   visit_children(n);
+
   Node *array_base_node = n->get_kid(0);
   Node *array_ref_node = n->get_kid(1);
 
   Operand array_idx_opd = array_ref_node->get_operand();
-  // decay a array variable memref into a pointer
   Operand array_base_opd = array_base_node->get_operand();
-  if (array_base_opd.is_memref())
-  {
-    array_base_opd = array_base_opd.memref_to();
-  }
 
-  // Xsconv_XX vrXX, vrXX: align array index data width with pointer's
-  // bug wl should be bq
-  Operand tmp_opd = Operand(Operand::VREG, get_next_local_vreg());
-  HighLevelOpcode sconv_opcode = get_opcode(HINS_sconv_wl, array_ref_node->get_type());
-  m_hl_iseq->append(new Instruction(sconv_opcode, tmp_opd, array_idx_opd));
-  // mul_q vrXX, vrXX, $X: mutiply to get the storage offset of the array index
-  Operand index_offset_tmp_opd(Operand::VREG, get_next_local_vreg());
-  Operand unit_size_opd(Operand::IMM_IVAL, array_ref_node->get_type()->get_storage_size());
-  m_hl_iseq->append(new Instruction(HighLevelOpcode::HINS_mul_q, index_offset_tmp_opd, tmp_opd, unit_size_opd));
-  // add_q vrXX, VrXX, vrXX: Conduct "add" to get the storage address of the index
-  tmp_opd.set_base_reg(get_next_local_vreg());
-  m_hl_iseq->append(new Instruction(HighLevelOpcode::HINS_add_q, tmp_opd, array_base_opd, index_offset_tmp_opd));
-  // mov_x vrXX, vr(XX): local the value of that array index to a temporary register
-  // Operand index_value_opd(Operand::VREG, get_next_local_vreg());
-  // HighLevelOpcode mov_opcode = get_opcode(HINS_mov_b, array_ref_node->get_type());
-  // m_hl_iseq->append(new Instruction(mov_opcode, index_value_opd, Operand(Operand::VREG_MEM, index_address_tmp_opd.get_base_reg())));
+  std::shared_ptr<Type> base_type = array_base_node->get_type()->get_base_type();
+  std::shared_ptr<Type> idx_type = array_ref_node->get_type();
 
-  // set memory reference for a array index
-  n->set_operand(tmp_opd.to_memref());
-  // }
-  // else if (array_base_node->get_symbol()->get_storage_type() == StorageType::MEM)
-  // {
-  //   unsigned offset = array_base_node->get_symbol()->get_storage_location();
-
-  //   array_base_opd = Operand(Operand::VREG, get_next_local_vreg());
-  //   m_hl_iseq->append(new Instruction(HighLevelOpcode::HINS_localaddr, array_base_opd, Operand(Operand::IMM_IVAL, offset)));
-
-  //   Operand array_index_tmp_opd(Operand::VREG, get_next_local_vreg());
-  //   HighLevelOpcode mov_opcode = get_opcode(HINS_mov_b, array_ref_node->get_type());
-  //   m_hl_iseq->append(new Instruction(mov_opcode, array_index_tmp_opd, array_idx_opd));
-
-  //   Operand array_index_tmp_up_opd(Operand::VREG, get_next_local_vreg());
-  //   HighLevelOpcode sconv_opcode = get_opcode(HINS_sconv_wl, array_ref_node->get_type());
-  //   m_hl_iseq->append(new Instruction(sconv_opcode, array_index_tmp_up_opd, array_index_tmp_opd));
-  //   // mul_q vrXX, vrXX, $X: mutiply to get the storage offset of the array index
-  //   Operand index_offset_tmp_opd(Operand::VREG, get_next_local_vreg());
-  //   Operand unit_size_opd(Operand::IMM_IVAL, array_ref_node->get_type()->get_storage_size());
-  //   m_hl_iseq->append(new Instruction(HighLevelOpcode::HINS_mul_q, index_offset_tmp_opd, array_index_tmp_up_opd, unit_size_opd));
-
-  //   // add_q vrXX, VrXX, vrXX: Conduct "add" to get the storage address of the index
-  //   Operand index_address_tmp_opd(Operand::VREG, get_next_local_vreg());
-  //   m_hl_iseq->append(new Instruction(HighLevelOpcode::HINS_add_q, index_address_tmp_opd, array_base_opd, index_offset_tmp_opd));
-
-  //   n->set_operand(Operand(Operand::VREG_MEM, index_address_tmp_opd.get_base_reg()));
-  // }
+  n->set_operand(emit_pointer_arithmetric(array_base_opd, array_idx_opd, base_type, idx_type));
 }
 
 void HighLevelCodegen::visit_variable_ref(Node *n)
@@ -521,11 +463,11 @@ void HighLevelCodegen::visit_literal_value(Node *n)
   LiteralValue val = n->get_literal_value();
   if (n->get_kid(0)->get_tag() == TOK_INT_LIT)
   {
-    unsigned int vreg = get_next_local_vreg();
-    Operand dest(Operand::VREG, vreg);
-    HighLevelOpcode mov_opcode = get_opcode(HINS_mov_b, n->get_type());
-    m_hl_iseq->append(new Instruction(mov_opcode, dest, Operand(Operand::IMM_IVAL, val.get_int_value())));
-    n->set_operand(dest);
+    Operand dest(Operand::VREG, get_next_local_vreg());
+    Operand src(Operand::IMM_IVAL, val.get_int_value());
+    std::shared_ptr<Type> src_type = n->get_type();
+
+    n->set_operand(emit_basic_opt(HINS_mov_b, dest, src, src_type));
   }
 }
 
@@ -542,3 +484,44 @@ std::string HighLevelCodegen::next_label()
 }
 
 // TODO: additional private member functions
+Operand HighLevelCodegen::emit_pointer_arithmetric(Operand base_opd, Operand idx_opd, const std::shared_ptr<Type> &base_type, const std::shared_ptr<Type> &idx_type)
+{
+  if (base_opd.is_memref())
+  {
+    base_opd = base_opd.memref_to();
+  }
+
+  // Xsconv_XX vrXX, vrXX: align array index data width with pointer's
+  // bug wl should be bq
+  Operand tmp_opd = Operand(Operand::VREG, get_next_local_vreg());
+  HighLevelOpcode sconv_opcode = get_sconv_opcode(HINS_sconv_lq, idx_type);
+  m_hl_iseq->append(new Instruction(sconv_opcode, tmp_opd, idx_opd));
+  // mul_q vrXX, vrXX, $X: mutiply to get the storage offset of the array index
+  Operand index_offset_tmp_opd(Operand::VREG, get_next_local_vreg());
+  Operand unit_size_opd(Operand::IMM_IVAL, base_type->get_storage_size());
+  m_hl_iseq->append(new Instruction(HighLevelOpcode::HINS_mul_q, index_offset_tmp_opd, tmp_opd, unit_size_opd));
+  // add_q vrXX, VrXX, vrXX: Conduct "add" to get the storage address of the index
+  tmp_opd.set_base_reg(get_next_local_vreg());
+  m_hl_iseq->append(new Instruction(HighLevelOpcode::HINS_add_q, tmp_opd, base_opd, index_offset_tmp_opd));
+  return tmp_opd.to_memref();
+};
+
+Operand HighLevelCodegen::emit_basic_opt(HighLevelOpcode basic_code, Operand dst_opd, Operand src_opd, const std::shared_ptr<Type> &src_type)
+{
+  HighLevelOpcode opcode = get_opcode(basic_code, src_type);
+  m_hl_iseq->append(new Instruction(opcode, dst_opd, src_opd));
+  return m_hl_iseq->get_last_instruction()->get_operand(0);
+}
+
+Operand HighLevelCodegen::emit_basic_opt(HighLevelOpcode basic_code, Operand dst_opd, Operand src1_opd, Operand src2_opd, const std::shared_ptr<Type> &src_type)
+{
+  HighLevelOpcode opcode = get_opcode(basic_code, src_type);
+  m_hl_iseq->append(new Instruction(opcode, dst_opd, src1_opd, src2_opd));
+  return m_hl_iseq->get_last_instruction()->get_operand(0);
+}
+
+// Adjust an opcode for a sconv type
+HighLevelOpcode HighLevelCodegen::get_sconv_opcode(HighLevelOpcode base_opcode, const std::shared_ptr<Type> &type)
+{
+  return HighLevelOpcode::HINS_sconv_lq;
+}
