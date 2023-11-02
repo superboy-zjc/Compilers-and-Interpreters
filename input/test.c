@@ -1,6 +1,6 @@
-void main(){
-	int a;
-	a= 'a';
-	a = "aaa";
-	a = 123;
+int main(void) {
+  int a, *p, **pp;
+  p = &a;
+  pp = &p;
+  return a;
 }

@@ -254,7 +254,30 @@ void HighLevelCodegen::visit_binary_expression(Node *n)
   }
   else if (opt->get_tag() == TOK_PLUS || opt->get_tag() == TOK_MINUS || opt->get_tag() == TOK_ASTERISK || opt->get_tag() == TOK_LOGICAL_AND || opt->get_tag() == TOK_LOGICAL_OR)
   {
+    HighLevelOpcode optcode;
+    switch (opt->get_tag())
+    {
+    case TOK_PLUS:
+      optcode = HighLevelOpcode::HINS_add_b;
+      break;
+    case TOK_MINUS:
+      optcode = HighLevelOpcode::HINS_sub_b;
+      break;
+    case TOK_ASTERISK:
+      optcode = HighLevelOpcode::HINS_mul_b;
+      break;
+    case TOK_LOGICAL_AND:
+      optcode = HighLevelOpcode::HINS_and_b;
+      break;
+    case TOK_LOGICAL_OR:
+      optcode = HighLevelOpcode::HINS_or_b;
+      break;
+    default:
+      RuntimeError::raise("unkown binary operation");
+      break;
+    }
     // pointer arithmetic
+    // point + 4
     if ((opd1_node->get_type()->is_array() || opd1_node->get_type()->is_pointer()) && opd2_node->get_type()->is_integral())
     {
       // memref of pointer arithmetic computation
@@ -272,13 +295,18 @@ void HighLevelCodegen::visit_binary_expression(Node *n)
         n->set_operand(tmp_dst.memref_to());
       }
     }
+    // normal situations
     else
     {
       Operand tmp_dst(Operand::VREG, get_next_local_vreg());
       std::shared_ptr<Type> src_type = n->get_type();
 
       // generate instructions, temporarily use opd1 as implicit converstions
-      n->set_operand(emit_basic_opt(HINS_add_b, tmp_dst, opd1, opd2, src_type));
+      n->set_operand(emit_basic_opt(optcode, tmp_dst, opd1, opd2, src_type));
+      // Move return operand to a new register
+      // Operand res_opd = emit_basic_opt(optcode, tmp_dst, opd1, opd2, src_type);
+      // tmp_dst = Operand(Operand::VREG, get_next_local_vreg());
+      // n->set_operand(emit_basic_opt(HINS_mov_b, tmp_dst, res_opd, src_type));
     }
   }
   else if (opt->get_tag() == TOK_GTE || opt->get_tag() == TOK_GT || opt->get_tag() == TOK_LTE || opt->get_tag() == TOK_LT || opt->get_tag() == TOK_EQUALITY)
@@ -302,7 +330,7 @@ void HighLevelCodegen::visit_binary_expression(Node *n)
       optcode = HighLevelOpcode::HINS_cmpeq_b;
       break;
     default:
-      RuntimeError::raise("unkown unary operation");
+      RuntimeError::raise("unkown binary operation");
       break;
     }
     // cmpXX_
@@ -321,7 +349,7 @@ void HighLevelCodegen::visit_unary_expression(Node *n)
   visit(n->get_kid(1));
   // std::shared_ptr<Type> opd = n->get_kid(1)->get_type();
   //  debug
-  Operand opd = n->get_kid(1)->get_operand();
+  Operand opd = opd_node->get_operand();
 
   Node *opt = n->get_kid(0);
   // // - ! ~
@@ -350,22 +378,19 @@ void HighLevelCodegen::visit_unary_expression(Node *n)
   // // &
   if (opt->get_tag() == TOK_AMPERSAND)
   {
-    if (!opd_node->if_lvalue())
-    {
-      SemanticError::raise(n->get_loc(), "Error: Taking address of non-lvalue");
-    }
-    else
-    {
-      n->set_operand(opd.memref_to());
-    }
+    n->set_operand(opd.memref_to());
   }
   // *
   else if (opt->get_tag() == TOK_ASTERISK)
   {
-
-    if (!opd_node->if_lvalue())
+    if (opd.is_memref())
     {
-      SemanticError::raise(n->get_loc(), "high_codegen: Dereference of non-pointer");
+      Operand tmp_opt(Operand::VREG, get_next_local_vreg());
+      // if opd is already a memref, move to a new register, and ref it
+      m_hl_iseq->append(new Instruction(HINS_mov_q, tmp_opt, opd));
+
+      // n->set_operand(emit_basic_opt(HINS_mov_q, tmp_opt, opd, src_type));
+      n->set_operand(tmp_opt.to_memref());
     }
     else
     {
@@ -413,14 +438,28 @@ void HighLevelCodegen::visit_function_call_expression(Node *n)
 
 void HighLevelCodegen::visit_field_ref_expression(Node *n)
 {
-  // TODO: implement
-  visit_children(n);
+  // load struct base address
+  Node *struct_base_node = n->get_kid(0);
+  visit(struct_base_node);
+
+  std::string field_name = n->get_kid(1)->get_str();
+
+  Operand struct_base_opd = struct_base_node->get_operand();
+
+  n->set_operand(emit_field_arithmetric(struct_base_opd, struct_base_node->get_symbol(), field_name));
 }
 
 void HighLevelCodegen::visit_indirect_field_ref_expression(Node *n)
 {
-  // TODO: implement
-  visit_children(n);
+  // load struct base address
+  Node *struct_base_node = n->get_kid(0);
+  visit(struct_base_node);
+
+  std::string field_name = n->get_kid(1)->get_str();
+
+  Operand struct_base_opd = struct_base_node->get_operand();
+
+  n->set_operand(emit_field_arithmetric(struct_base_opd, struct_base_node->get_symbol(), field_name));
 }
 
 void HighLevelCodegen::visit_array_element_ref_expression(Node *n)
@@ -513,9 +552,47 @@ Operand HighLevelCodegen::emit_pointer_arithmetric(Operand base_opd, Operand idx
   return tmp_opd.to_memref();
 };
 
+// for struct field
+Operand HighLevelCodegen::emit_field_arithmetric(Operand base_opd, Symbol *struct_sym, std::string field_name)
+{
+  if (base_opd.is_memref())
+  {
+    base_opd = base_opd.memref_to();
+  }
+  // std::shared_ptr<Type> field_type = struct_sym->get_type()->find_member(field_name)->get_type();
+  // for indirect reference
+  unsigned offset;
+  if (struct_sym->get_type()->is_pointer())
+  {
+    offset = struct_sym->get_type()->get_base_type()->find_member(field_name)->get_storage_offset();
+  }
+  // direct
+  else
+  {
+    offset = struct_sym->get_type()->find_member(field_name)->get_storage_offset();
+  }
+
+  Operand field_offset_opd(Operand::IMM_IVAL, offset);
+  Operand field_offset_tmp_opd(Operand::VREG, get_next_local_vreg());
+  // mov_q tmp_opd1, field_offset
+  m_hl_iseq->append(new Instruction(HighLevelOpcode::HINS_mov_q, field_offset_tmp_opd, field_offset_opd));
+  // add_q vrXX, VrXX, vrXX: Conduct "add" to get the storage address of the index
+  Operand tmp_add_opd(Operand::VREG, get_next_local_vreg());
+  m_hl_iseq->append(new Instruction(HighLevelOpcode::HINS_add_q, tmp_add_opd, base_opd, field_offset_tmp_opd));
+  return tmp_add_opd.to_memref();
+};
+
 Operand HighLevelCodegen::emit_basic_opt(HighLevelOpcode basic_code, Operand dst_opd, Operand src_opd, const std::shared_ptr<Type> &src_type)
 {
-  HighLevelOpcode opcode = get_opcode(basic_code, src_type);
+  HighLevelOpcode opcode;
+  // if (basic_code == HINS_mov_q)
+  // {
+  //   opcode == basic_code;
+  // }
+  // else
+  // {
+  opcode = get_opcode(basic_code, src_type);
+  // }
   m_hl_iseq->append(new Instruction(opcode, dst_opd, src_opd));
   return m_hl_iseq->get_last_instruction()->get_operand(0);
 }

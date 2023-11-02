@@ -757,10 +757,32 @@ void SemanticAnalysis::visit_field_ref_expression(Node *n)
   n->set_lvalue(true);
 }
 
+// |     +--AST_INDIRECT_FIELD_REF_EXPRESSION
+// |     |  +--AST_VARIABLE_REF
+// |     |  |  +--TOK_IDENT[q]
+// |     |  +--TOK_IDENT[x]
+// q->x
 void SemanticAnalysis::visit_indirect_field_ref_expression(Node *n)
 {
-  // TODO: implement
-  visit_children(n);
+  // visit variable ref
+  std::shared_ptr<Type> res;
+  Node *struct_var = n->get_kid(0);
+  visit(struct_var);
+
+  std::shared_ptr<Type> struct_type;
+  std::string field_name = n->get_kid(1)->get_str();
+  struct_type = struct_var->get_type();
+  // struct abc *c;
+  if (!struct_type->is_pointer() || !struct_type->get_base_type()->is_struct())
+  {
+    SemanticError::raise(n->get_loc(), "field indirect ref error!");
+  }
+  // find field member
+  res = struct_type->get_base_type()->find_member(field_name)->get_type();
+
+  n->set_type(res);
+  // printf("%s", n->get_type()->as_str().c_str());
+  n->set_lvalue(true);
 }
 
 void SemanticAnalysis::visit_array_element_ref_expression(Node *n)

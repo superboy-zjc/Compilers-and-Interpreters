@@ -81,6 +81,8 @@ private:
   };
 
   Operand emit_pointer_arithmetric(Operand base_opd, Operand idx_opd, const std::shared_ptr<Type> &base_type, const std::shared_ptr<Type> &idx_type);
+  Operand emit_field_arithmetric(Operand base_opd, Symbol *struct_sym, std::string field_name);
+
   Operand emit_basic_opt(HighLevelOpcode basic_code, Operand dst_opd, Operand src_opd, const std::shared_ptr<Type> &src_type);
   Operand emit_basic_opt(HighLevelOpcode basic_code, Operand dst_opd, Operand src1_opd, Operand src2_opd, const std::shared_ptr<Type> &src_type);
 
