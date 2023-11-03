@@ -417,7 +417,7 @@ void SemanticAnalysis::visit_struct_type_definition(Node *n)
     SemanticError::raise(n->get_loc(), "Type error: struct name conflicted with other definitions");
   }
   std::shared_ptr<Type> struct_type(new StructType(name));
-  m_cur_symtab->define(SymbolKind::TYPE, "struct " + name, struct_type);
+  Symbol *struct_sym = m_cur_symtab->define(SymbolKind::TYPE, "struct " + name, struct_type);
 
   // visit the block of struct definition
   enter_scope();
@@ -429,11 +429,13 @@ void SemanticAnalysis::visit_struct_type_definition(Node *n)
     Symbol *symbol = *it;
     Member member(symbol->get_name(), symbol->get_type());
     // after definition of structure, adding fields onto struct type
-    m_cur_symtab->get_parent()->lookup_local("struct " + name)->get_type()->add_member(member);
+    // m_cur_symtab->get_parent()->lookup_local("struct " + name)->get_type()->add_member(member);
+    // improve when doing assign04
+    struct_type->add_member(member);
   }
   // for assignment04: label a symbol for every struct type definition
   // Example: every AST node -> AST_STRUCT_TYPE_DEFINITION, has a Symbol*
-  n->set_symbol(m_cur_symtab->get_parent()->lookup_local("struct " + name));
+  n->set_symbol(struct_sym);
 
   // step out of the block of struct definition
   leave_scope();
