@@ -237,6 +237,7 @@ void HighLevelCodegen::visit_binary_expression(Node *n)
   // temperoray virtual registers
   struct vreg saved_vreg = get_cur_vreg();
   // visit_children(n);
+  Node *opt = n->get_kid(0);
   Node *opd1_node = n->get_kid(1);
   Node *opd2_node = n->get_kid(2);
   std::shared_ptr<Type> opd1_type = opd1_node->get_type();
@@ -246,36 +247,54 @@ void HighLevelCodegen::visit_binary_expression(Node *n)
   Operand opd1 = opd1_node->get_operand();
   Operand opd2 = opd2_node->get_operand();
 
-  Node *opt = n->get_kid(0);
+  HighLevelOpcode optcode;
+  switch (opt->get_tag())
+  {
+  case TOK_PLUS:
+    optcode = HighLevelOpcode::HINS_add_b;
+    break;
+  case TOK_ASSIGN:
+    optcode = HighLevelOpcode::HINS_mov_b;
+    break;
+  case TOK_MINUS:
+    optcode = HighLevelOpcode::HINS_sub_b;
+    break;
+  case TOK_ASTERISK:
+    optcode = HighLevelOpcode::HINS_mul_b;
+    break;
+  case TOK_LOGICAL_AND:
+    optcode = HighLevelOpcode::HINS_and_b;
+    break;
+  case TOK_LOGICAL_OR:
+    optcode = HighLevelOpcode::HINS_or_b;
+    break;
+  case TOK_GTE:
+    optcode = HighLevelOpcode::HINS_cmpgte_b;
+    break;
+  case TOK_GT:
+    optcode = HighLevelOpcode::HINS_cmpgt_b;
+    break;
+  case TOK_LTE:
+    optcode = HighLevelOpcode::HINS_cmplte_b;
+    break;
+  case TOK_LT:
+    optcode = HighLevelOpcode::HINS_cmplt_b;
+    break;
+  case TOK_EQUALITY:
+    optcode = HighLevelOpcode::HINS_cmpeq_b;
+    break;
+  default:
+    RuntimeError::raise("unkown binary operation");
+    break;
+  }
   if (opt->get_tag() == TOK_ASSIGN)
   {
     // generate instructions, temporarily use opd1 as implicit converstions
-    n->set_operand(emit_basic_opt(HINS_mov_b, opd1, opd2, opd1_type));
+    n->set_operand(emit_basic_opt(optcode, opd1, opd2, opd1_type));
   }
   else if (opt->get_tag() == TOK_PLUS || opt->get_tag() == TOK_MINUS || opt->get_tag() == TOK_ASTERISK || opt->get_tag() == TOK_LOGICAL_AND || opt->get_tag() == TOK_LOGICAL_OR)
   {
-    HighLevelOpcode optcode;
-    switch (opt->get_tag())
-    {
-    case TOK_PLUS:
-      optcode = HighLevelOpcode::HINS_add_b;
-      break;
-    case TOK_MINUS:
-      optcode = HighLevelOpcode::HINS_sub_b;
-      break;
-    case TOK_ASTERISK:
-      optcode = HighLevelOpcode::HINS_mul_b;
-      break;
-    case TOK_LOGICAL_AND:
-      optcode = HighLevelOpcode::HINS_and_b;
-      break;
-    case TOK_LOGICAL_OR:
-      optcode = HighLevelOpcode::HINS_or_b;
-      break;
-    default:
-      RuntimeError::raise("unkown binary operation");
-      break;
-    }
+
     // pointer arithmetic
     // point + 4
     if ((opd1_node->get_type()->is_array() || opd1_node->get_type()->is_pointer()) && opd2_node->get_type()->is_integral())
@@ -303,36 +322,10 @@ void HighLevelCodegen::visit_binary_expression(Node *n)
 
       // generate instructions, temporarily use opd1 as implicit converstions
       n->set_operand(emit_basic_opt(optcode, tmp_dst, opd1, opd2, src_type));
-      // Move return operand to a new register
-      // Operand res_opd = emit_basic_opt(optcode, tmp_dst, opd1, opd2, src_type);
-      // tmp_dst = Operand(Operand::VREG, get_next_local_vreg());
-      // n->set_operand(emit_basic_opt(HINS_mov_b, tmp_dst, res_opd, src_type));
     }
   }
   else if (opt->get_tag() == TOK_GTE || opt->get_tag() == TOK_GT || opt->get_tag() == TOK_LTE || opt->get_tag() == TOK_LT || opt->get_tag() == TOK_EQUALITY)
   {
-    HighLevelOpcode optcode;
-    switch (opt->get_tag())
-    {
-    case TOK_GTE:
-      optcode = HighLevelOpcode::HINS_cmpgte_b;
-      break;
-    case TOK_GT:
-      optcode = HighLevelOpcode::HINS_cmpgt_b;
-      break;
-    case TOK_LTE:
-      optcode = HighLevelOpcode::HINS_cmplte_b;
-      break;
-    case TOK_LT:
-      optcode = HighLevelOpcode::HINS_cmplt_b;
-      break;
-    case TOK_EQUALITY:
-      optcode = HighLevelOpcode::HINS_cmpeq_b;
-      break;
-    default:
-      RuntimeError::raise("unkown binary operation");
-      break;
-    }
     // cmpXX_
     // generate instructions, temporarily use opd1 as implicit converstions
     Operand tmp_dst(Operand::VREG, get_next_local_vreg());
@@ -507,7 +500,8 @@ void HighLevelCodegen::visit_literal_value(Node *n)
   // for string constants!):
 
   LiteralValue val = n->get_literal_value();
-  if (n->get_kid(0)->get_tag() == TOK_INT_LIT)
+  unsigned literal_kind = n->get_kid(0)->get_tag();
+  if (literal_kind == TOK_INT_LIT)
   {
     Operand dest(Operand::VREG, get_next_local_vreg());
     Operand src(Operand::IMM_IVAL, val.get_int_value());
@@ -515,12 +509,44 @@ void HighLevelCodegen::visit_literal_value(Node *n)
 
     n->set_operand(emit_basic_opt(HINS_mov_b, dest, src, src_type));
   }
+  else if (literal_kind == TOK_CHAR_LIT)
+  {
+    Operand dest(Operand::VREG, get_next_local_vreg());
+    Operand src(Operand::IMM_IVAL, static_cast<int>(val.get_char_value()));
+    std::shared_ptr<Type> src_type = n->get_type();
+
+    n->set_operand(emit_basic_opt(HINS_mov_b, dest, src, src_type));
+  }
+  // else if (literal_kind == TOK_STRING_LIT)
+  // {
+  //   Operand dest(Operand::VREG, get_next_local_vreg());
+  //   Operand src(Operand::IMM_IVAL, static_cast<int>(val.get_char_value()));
+  //   std::shared_ptr<Type> src_type = n->get_type();
+  // }
 }
 
 void HighLevelCodegen::visit_implicit_conversion(Node *n)
 {
-  // TODO: implement
   visit_children(n);
+  // // // TODO: implement
+  // Symbol *cur_sym = n->get_kid(0)->get_symbol();
+  // unsigned int stor_loc = cur_sym->get_storage_location();
+  // if (cur_sym->get_storage_type() == StorageType::VREG)
+  // {
+  //   Operand dest(Operand::VREG, stor_loc);
+  //   n->set_operand(dest);
+  // }
+  // else if (cur_sym->get_storage_type() == StorageType::MEM)
+  // {
+  //   // if lvalue, generate a sequence of instructions to compute the exact address of the referenced lvalue.
+  //   Operand lvalue_opd(Operand::VREG, get_next_local_vreg());
+  //   m_hl_iseq->append(new Instruction(HighLevelOpcode::HINS_localaddr, lvalue_opd, Operand(Operand::IMM_IVAL, cur_sym->get_storage_location())));
+  //   n->set_operand(lvalue_opd.to_memref());
+  // }
+  // else
+  // {
+  //   RuntimeError::raise("unkown storage type");
+  // }
 }
 
 std::string HighLevelCodegen::next_label()

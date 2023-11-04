@@ -106,6 +106,7 @@ public:
   void set_operand(Operand operand)
   {
     m_operand = operand;
+    // printf("operand type: %d\n", operand.get_kind());
   };
   Operand get_operand() const
   {

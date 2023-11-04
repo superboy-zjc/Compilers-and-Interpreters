@@ -166,42 +166,44 @@ void SemanticAnalysis::visit_basic_type(Node *n)
   }
   else if (has_char)
   {
-    std::shared_ptr<Type> signed_char_type;
+    std::shared_ptr<Type> char_type;
     if (has_unsigned)
     {
-      signed_char_type = std::make_shared<BasicType>(BasicTypeKind::CHAR, false);
+      char_type = std::make_shared<BasicType>(BasicTypeKind::CHAR, false);
     }
     else
     {
-      signed_char_type = std::make_shared<BasicType>(BasicTypeKind::CHAR, true);
+      char_type = std::make_shared<BasicType>(BasicTypeKind::CHAR, true);
     }
     // type qualifiers
     if (has_const)
     {
-      std::shared_ptr<Type> qualified_type = std::make_shared<QualifiedType>(signed_char_type, TypeQualifier::CONST);
-      signed_char_type = qualified_type;
+      // assign04 improve
+      char_type = std::make_shared<QualifiedType>(char_type, TypeQualifier::CONST);
     }
     if (has_volatile)
     {
-      std::shared_ptr<Type> qualified_type2 = std::make_shared<QualifiedType>(signed_char_type, TypeQualifier::VOLATILE);
-      signed_char_type = qualified_type2;
+      // assign04 improve
+      char_type = std::make_shared<QualifiedType>(char_type, TypeQualifier::VOLATILE);
+      // std::shared_ptr<Type> qualified_type2 = std::make_shared<QualifiedType>(signed_char_type, TypeQualifier::VOLATILE);
+      // signed_char_type = qualified_type2;
     }
-    n->set_type(signed_char_type);
+    n->set_type(char_type);
   }
   else
   // Integral number type
   {
-    std::shared_ptr<Type> signed_int_type;
+    std::shared_ptr<Type> int_type;
     // long
     if (has_long)
     {
       if (has_unsigned)
       {
-        signed_int_type = std::make_shared<BasicType>(BasicTypeKind::LONG, false);
+        int_type = std::make_shared<BasicType>(BasicTypeKind::LONG, false);
       }
       else
       {
-        signed_int_type = std::make_shared<BasicType>(BasicTypeKind::LONG, true);
+        int_type = std::make_shared<BasicType>(BasicTypeKind::LONG, true);
       }
     }
     // short
@@ -209,11 +211,11 @@ void SemanticAnalysis::visit_basic_type(Node *n)
     {
       if (has_unsigned)
       {
-        signed_int_type = std::make_shared<BasicType>(BasicTypeKind::SHORT, false);
+        int_type = std::make_shared<BasicType>(BasicTypeKind::SHORT, false);
       }
       else
       {
-        signed_int_type = std::make_shared<BasicType>(BasicTypeKind::SHORT, true);
+        int_type = std::make_shared<BasicType>(BasicTypeKind::SHORT, true);
       }
     }
     // int
@@ -221,26 +223,28 @@ void SemanticAnalysis::visit_basic_type(Node *n)
     {
       if (has_unsigned)
       {
-        signed_int_type = std::make_shared<BasicType>(BasicTypeKind::INT, false);
+        int_type = std::make_shared<BasicType>(BasicTypeKind::INT, false);
       }
       else
       {
-        signed_int_type = std::make_shared<BasicType>(BasicTypeKind::INT, true);
+        int_type = std::make_shared<BasicType>(BasicTypeKind::INT, true);
       }
     }
 
     // type qualifiers
     if (has_const)
     {
-      std::shared_ptr<Type> qualified_type = std::make_shared<QualifiedType>(signed_int_type, TypeQualifier::CONST);
-      signed_int_type = qualified_type;
+      int_type = std::make_shared<QualifiedType>(int_type, TypeQualifier::CONST);
+      // std::shared_ptr<Type> qualified_type = std::make_shared<QualifiedType>(signed_int_type, TypeQualifier::CONST);
+      // signed_int_type = qualified_type;
     }
     if (has_volatile)
     {
-      std::shared_ptr<Type> qualified_type2 = std::make_shared<QualifiedType>(signed_int_type, TypeQualifier::VOLATILE);
-      signed_int_type = qualified_type2;
+      int_type = std::make_shared<QualifiedType>(int_type, TypeQualifier::VOLATILE);
+      // std::shared_ptr<Type> qualified_type2 = std::make_shared<QualifiedType>(int_type, TypeQualifier::VOLATILE);
+      // signed_int_type = qualified_type2;
     }
-    n->set_type(signed_int_type);
+    n->set_type(int_type);
   }
 }
 
@@ -503,7 +507,6 @@ void SemanticAnalysis::visit_binary_expression(Node *n)
     else if ((opd1->is_pointer() && !opd2->is_pointer()) || (!opd1->is_pointer() && opd2->is_pointer()))
     {
       // printf("type: opd1: %s\n opd2: %s\n", opd1->as_str().c_str(), opd2->as_str().c_str());
-
       SemanticError::raise(n->get_loc(), "An assignment involving both pointer and non-pointer operands is never legal");
     }
     else if (opd1->is_struct() && opd2->is_struct())
@@ -535,6 +538,7 @@ void SemanticAnalysis::visit_binary_expression(Node *n)
 
       if (opd2->get_basic_type_kind() < BasicTypeKind::INT)
       {
+        // representing implicit
         n->set_kid(2, opd2_node = promote_to_int(opd2_node));
         opd2 = std::make_shared<BasicType>(BasicTypeKind::INT, opd2->is_signed());
       }
@@ -547,11 +551,16 @@ void SemanticAnalysis::visit_binary_expression(Node *n)
       {
         opd2 = std::make_shared<BasicType>(opd1->get_basic_type_kind(), true);
       }
+      // rule 3
       if (!opd1->is_signed() || !opd2->is_signed())
       {
         opd1 = std::make_shared<BasicType>(opd2->get_basic_type_kind(), false);
         opd2 = std::make_shared<BasicType>(opd1->get_basic_type_kind(), false);
       }
+      // implicit node
+      // opd1_node->set_type(opd1);
+      // opd2_node->set_type(opd2);
+      //
       n->set_type(opd1);
       n->set_lvalue(false);
     }
@@ -628,7 +637,16 @@ void SemanticAnalysis::visit_unary_expression(Node *n)
         std::shared_ptr<Type> opd = std::make_shared<PointerType>(opd->get_base_type());
       }
       res = std::make_shared<PointerType>(opd);
-      opd_node->get_symbol()->taken_address(true);
+      // assign04
+      // special case for AST_ARRAY_ELEMENT_REF_EXPRESSION
+      // array element ref expression would be first kid of unary expresson, but it would not
+      // contain a symbol object. And array is naturally allocated storage in the stack frame
+      // without any need to mark its address taken.
+      if (opd_node->has_symbol())
+      {
+        opd_node->get_symbol()->taken_address(true);
+      }
+
       n->set_lvalue(false);
     }
   }
