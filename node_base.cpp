@@ -80,3 +80,11 @@ std::shared_ptr<Type> NodeBase::get_type() const
 
 void NodeBase::set_lvalue(bool flag) { m_lvalue = flag; }
 bool NodeBase::if_lvalue() { return m_lvalue; }
+
+// assign04 for updating the type in the expression node
+// void NodeBase::update_type(const std::shared_ptr<Type> &type)
+// {
+//     assert(!has_symbol());
+//     // assert(!m_type);
+//     m_type = type;
+// }

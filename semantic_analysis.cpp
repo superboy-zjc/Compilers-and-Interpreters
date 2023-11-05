@@ -697,6 +697,7 @@ void SemanticAnalysis::visit_function_call_expression(Node *n)
 
   Node *args = n->get_kid(1);
 
+  // get all the arguments type into one vector
   for (auto i = args->cbegin(); i != args->cend(); ++i)
   {
     Node *cur_node = *i;
@@ -704,10 +705,12 @@ void SemanticAnalysis::visit_function_call_expression(Node *n)
     std::shared_ptr<Type> myType = cur_node->get_type();
     args_type.push_back(myType);
   }
+  // check arguments number
   if (fun_call->get_type()->get_num_members() != args_type.size())
   {
     SemanticError::raise(n->get_loc(), "Lack of function arguments");
   }
+  // check arguments type
   for (unsigned int i = 0; i < fun_call->get_type()->get_num_members(); i++)
   {
     Type *rawPointer;
@@ -729,6 +732,9 @@ void SemanticAnalysis::visit_function_call_expression(Node *n)
     if (args_type[i]->is_array())
     {
       args_type[i] = std::make_shared<PointerType>(args_type[i]->get_base_type());
+      // assign04 for patching the argument expression node derivated from the AST function call node
+      // update the argument with array reference to a pointer type
+      // args->get_kid(i)->update_type(args_type[i]);
     }
     if (!args_type[i]->is_same(rawPointer))
     {

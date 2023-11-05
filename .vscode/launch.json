@@ -8,7 +8,7 @@
             "program": "${workspaceFolder}/nearly_cc",
             "args": [
                 "-h",
-                "~/fall2023-tests/assign04/input/example01.c"
+                "~/fall2023-tests/assign04/input/example09.c"
                 //"input/test2.c"
             ],
             "stopAtEntry": false,

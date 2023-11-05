@@ -411,12 +411,21 @@ void HighLevelCodegen::visit_function_call_expression(Node *n)
 
     unsigned int arg_vreg = get_next_arg_vreg();
     Operand param_opd = func_parameter->get_operand();
+    std::shared_ptr<Type> src_type = func_parameter->get_type();
+    // convert an array reference to a pointer
+    if (src_type->is_array())
+    {
+      src_type = std::make_shared<PointerType>(src_type->get_base_type());
+    }
     // decay a array variable memref into a pointer -> func_a(arr) /
     if (param_opd.is_memref())
     {
       param_opd = param_opd.memref_to();
     }
-    m_hl_iseq->append(new Instruction(HighLevelOpcode::HINS_mov_q, Operand(Operand::VREG, arg_vreg), param_opd));
+
+    // generate instructions, temporarily use opd1 as implicit converstions
+    emit_basic_opt(HINS_mov_b, Operand(Operand::VREG, arg_vreg), param_opd, src_type);
+    // m_hl_iseq->append(new Instruction(HighLevelOpcode::HINS_mov_q, Operand(Operand::VREG, arg_vreg), param_opd));
   }
   // call instruction
   m_hl_iseq->append(new Instruction(HINS_call, Operand(Operand::LABEL, func_name)));
@@ -625,6 +634,17 @@ Operand HighLevelCodegen::emit_basic_opt(HighLevelOpcode basic_code, Operand dst
 
 Operand HighLevelCodegen::emit_basic_opt(HighLevelOpcode basic_code, Operand dst_opd, Operand src1_opd, Operand src2_opd, const std::shared_ptr<Type> &src_type)
 {
+  // operation with 3 operands will move the memref value to a new temp registers
+  // While operation with 2 operands such as assignment doesn't do that
+  if (src1_opd.is_memref())
+  {
+    src1_opd = emit_basic_opt(HINS_mov_b, alloc_tmp_vreg(), src1_opd, src_type);
+  }
+  if (src2_opd.is_memref())
+  {
+    src2_opd = emit_basic_opt(HINS_mov_b, alloc_tmp_vreg(), src2_opd, src_type);
+  }
+
   HighLevelOpcode opcode = get_opcode(basic_code, src_type);
   m_hl_iseq->append(new Instruction(opcode, dst_opd, src1_opd, src2_opd));
   return m_hl_iseq->get_last_instruction()->get_operand(0);
@@ -634,4 +654,8 @@ Operand HighLevelCodegen::emit_basic_opt(HighLevelOpcode basic_code, Operand dst
 HighLevelOpcode HighLevelCodegen::get_sconv_opcode(HighLevelOpcode base_opcode, const std::shared_ptr<Type> &type)
 {
   return HighLevelOpcode::HINS_sconv_lq;
+}
+Operand HighLevelCodegen::alloc_tmp_vreg()
+{
+  return Operand(Operand::VREG, get_next_local_vreg());
 }

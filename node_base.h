@@ -112,6 +112,7 @@ public:
   {
     return m_operand;
   };
+  // void update_type(const std::shared_ptr<Type> &type);
 };
 
 #endif // NODE_BASE_H

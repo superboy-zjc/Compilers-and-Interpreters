@@ -85,7 +85,7 @@ private:
 
   Operand emit_basic_opt(HighLevelOpcode basic_code, Operand dst_opd, Operand src_opd, const std::shared_ptr<Type> &src_type);
   Operand emit_basic_opt(HighLevelOpcode basic_code, Operand dst_opd, Operand src1_opd, Operand src2_opd, const std::shared_ptr<Type> &src_type);
-
+  Operand alloc_tmp_vreg();
   // Adjust an opcode for a sconv type
   HighLevelOpcode get_sconv_opcode(HighLevelOpcode base_opcode, const std::shared_ptr<Type> &type);
 };
