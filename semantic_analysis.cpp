@@ -374,7 +374,6 @@ void SemanticAnalysis::visit_function_parameter(Node *n)
 
 void SemanticAnalysis::visit_statement_list(Node *n)
 {
-  // TODO: implement
   enter_scope();
   visit_children(n);
   leave_scope();
@@ -382,21 +381,16 @@ void SemanticAnalysis::visit_statement_list(Node *n)
 
 void SemanticAnalysis::visit_return_expression_statement(Node *n)
 {
-  // TODO: implement
   std::shared_ptr<Type> res;
   Node *opd1_node = n->get_kid(0);
   visit(opd1_node);
 
-  std::shared_ptr<Type> opd1;
-  // debug
   if (!opd1_node->has_type())
   {
-    opd1 = std::make_shared<BasicType>(BasicTypeKind::INT, true);
+    SemanticError::raise(n->get_loc(), "return value doesn't have a type!");
   }
-  else
-  {
-    opd1 = n->get_kid(0)->get_type();
-  }
+  std::shared_ptr<Type> opd1 = n->get_kid(0)->get_type();
+
   //
   Symbol *function_retype = m_cur_symtab->lookup_recursive("***return type***");
   Type *rawPointer = function_retype->get_type().get();
@@ -413,7 +407,6 @@ void SemanticAnalysis::visit_return_expression_statement(Node *n)
 
 void SemanticAnalysis::visit_struct_type_definition(Node *n)
 {
-  // TODO: implement
   std::string name = n->get_kid(0)->get_str(); /* the name of the struct type */
   // if struct name been defined in the local symboltable, throw a error
   if (m_cur_symtab->has_symbol_local(name) || m_cur_symtab->has_symbol_local("struct " + name))
@@ -447,36 +440,23 @@ void SemanticAnalysis::visit_struct_type_definition(Node *n)
 
 void SemanticAnalysis::visit_binary_expression(Node *n)
 {
-  // TODO: implement
-
   std::shared_ptr<Type> res;
   Node *opd1_node = n->get_kid(1);
   Node *opd2_node = n->get_kid(2);
   visit(opd1_node);
   visit(opd2_node);
 
-  std::shared_ptr<Type> opd1;
-  std::shared_ptr<Type> opd2;
-  // debug
-  if (!n->get_kid(1)->has_type())
+  if (!opd1_node->has_type())
   {
-    // opd1 = std::make_shared<BasicType>(BasicTypeKind::INT, true);
     SemanticError::raise(n->get_loc(), "opd1 doesn't have a type!");
   }
-  else
+  if (!opd2_node->has_type())
   {
-    opd1 = n->get_kid(1)->get_type();
-  }
-  if (!n->get_kid(2)->has_type())
-  {
-    // opd2 = std::make_shared<BasicType>(BasicTypeKind::INT, true);
     SemanticError::raise(n->get_loc(), "opd2 doesn't have a type!");
   }
-  else
-  {
-    opd2 = n->get_kid(2)->get_type();
-  }
-  //
+
+  std::shared_ptr<Type> opd1 = n->get_kid(1)->get_type();
+  std::shared_ptr<Type> opd2 = n->get_kid(2)->get_type();
 
   Node *opt = n->get_kid(0);
   if (opt->get_tag() == TOK_ASSIGN)
@@ -538,10 +518,12 @@ void SemanticAnalysis::visit_binary_expression(Node *n)
       if (!opd1->is_same(old_opd1.get()))
       {
         n->set_kid(1, opd1_node = promote_to_a_type(opd1_node, opd1));
+        // printf("type: %s converted to %s\n", old_opd1->as_str().c_str(), n->get_kid(1)->get_type()->as_str().c_str());
       }
       if (!opd2->is_same(old_opd2.get()))
       {
         n->set_kid(2, opd2_node = promote_to_a_type(opd2_node, opd2));
+        // printf("type: %s converted to %s\n", old_opd2->as_str().c_str(), n->get_kid(2)->get_type()->as_str().c_str());
       }
       n->set_type(opd1);
       n->set_lvalue(false);
@@ -565,20 +547,16 @@ void SemanticAnalysis::visit_binary_expression(Node *n)
 
 void SemanticAnalysis::visit_unary_expression(Node *n)
 {
-  // // TODO: implement
   std::shared_ptr<Type> res;
   Node *opd_node = n->get_kid(1);
-  visit(n->get_kid(1));
-  std::shared_ptr<Type> opd;
-  // debug
-  if (!n->get_kid(1)->has_type())
+  visit(opd_node);
+
+  if (!opd_node->has_type())
   {
-    opd = std::make_shared<BasicType>(BasicTypeKind::INT, true);
+    SemanticError::raise(n->get_loc(), "opd doesn't have a type!");
   }
-  else
-  {
-    opd = n->get_kid(1)->get_type();
-  }
+
+  std::shared_ptr<Type> opd = n->get_kid(1)->get_type();
 
   Node *opt = n->get_kid(0);
   // - ! ~
@@ -591,9 +569,9 @@ void SemanticAnalysis::visit_unary_expression(Node *n)
       // int if it belongs to a less-precise type.
       if (opd->get_basic_type_kind() < BasicTypeKind::INT)
       {
-        // representing implicit
         n->set_kid(1, opd_node = promote_to_int(opd_node));
         res = opd_node->get_type();
+        // printf("type: %s converted to %s\n", opd->as_str().c_str(), n->get_kid(1)->get_type()->as_str().c_str());
       }
       else
       {
@@ -739,24 +717,20 @@ void SemanticAnalysis::visit_function_call_expression(Node *n)
 // b.x
 void SemanticAnalysis::visit_field_ref_expression(Node *n)
 {
-
   // visit variable ref
   std::shared_ptr<Type> res;
   Node *block_ref = n->get_kid(0);
-  std::shared_ptr<Type> block_type;
   std::string block_unit_name_to_visit = n->get_kid(1)->get_str();
 
   visit(block_ref);
 
-  // debug
   if (!block_ref->has_type())
   {
-    block_type = std::make_shared<BasicType>(BasicTypeKind::INT, true);
+    SemanticError::raise(n->get_loc(), "struct field doesn't have a type!");
   }
-  else
-  {
-    block_type = block_ref->get_type();
-  }
+
+  std::shared_ptr<Type> block_type = block_ref->get_type();
+
   if (!block_type->is_function() && !block_type->is_struct())
   {
     SemanticError::raise(n->get_loc(), "Field member doesn't exist");
@@ -806,22 +780,16 @@ void SemanticAnalysis::visit_indirect_field_ref_expression(Node *n)
 // a[3] -> example 04
 void SemanticAnalysis::visit_array_element_ref_expression(Node *n)
 {
-
   // visit variable ref
   std::shared_ptr<Type> res;
   Node *array_ref = n->get_kid(0);
   // traversal array base node and index node
   visit_children(n);
-  std::shared_ptr<Type> array_type;
-  // debug
   if (!array_ref->has_type())
   {
-    array_type = std::make_shared<BasicType>(BasicTypeKind::INT, true);
+    SemanticError::raise(n->get_loc(), "array element doesn't have a type!");
   }
-  else
-  {
-    array_type = array_ref->get_type();
-  }
+  std::shared_ptr<Type> array_type = array_ref->get_type();
 
   // if (!array_ref->get_type()->is_array())
   // {
@@ -831,11 +799,11 @@ void SemanticAnalysis::visit_array_element_ref_expression(Node *n)
   // printf("%s", n->get_type()->as_str().c_str());
   n->set_lvalue(true);
 }
+
 // |     |  +--AST_VARIABLE_REF
 // |     |  |  +--TOK_IDENT[a]
 void SemanticAnalysis::visit_variable_ref(Node *n)
 {
-  // TODO: implement
   std::string name = n->get_kid(0)->get_str();
   Symbol *variable_ref = m_cur_symtab->lookup_recursive(name);
   //
@@ -863,7 +831,6 @@ void SemanticAnalysis::visit_variable_ref(Node *n)
 // |     |     +--TOK_INT_LIT[3]
 void SemanticAnalysis::visit_literal_value(Node *n)
 {
-  // TODO: implement
   LiteralValue test;
   Node *literal = n->get_kid(0);
   bool ifsigned;
@@ -907,7 +874,7 @@ void SemanticAnalysis::visit_literal_value(Node *n)
   n->set_lvalue(false);
 }
 
-// TODO: implement helper functions
+// implement helper functions
 void SemanticAnalysis::enter_scope()
 {
   SymbolTable *scope = new SymbolTable(m_cur_symtab);

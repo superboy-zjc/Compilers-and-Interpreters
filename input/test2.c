@@ -1,6 +1,5 @@
 int main(){
-int a;
-short b;
-a = 1;
-b = a;
+	short i;
+	i = 1;
+	return -i;
 }
