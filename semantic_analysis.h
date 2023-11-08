@@ -43,6 +43,10 @@ public:
   virtual void visit_literal_value(Node *n);
   Node *promote_to_int(Node *n);
   Node *implicit_conversion(Node *n, const std::shared_ptr<Type> &type);
+  // assign04
+  Node *promote_to_a_type(Node *n, const std::shared_ptr<Type> &type);
+  bool is_operator_except_assignment(unsigned tag);
+  void binary_implicitly_conversion(std::shared_ptr<Type> &opd1, std::shared_ptr<Type> &opd2);
 
 private:
   // TODO: add helper functions

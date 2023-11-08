@@ -7,8 +7,9 @@
             "request": "launch",
             "program": "${workspaceFolder}/nearly_cc",
             "args": [
-                "-h",
-                "~/fall2023-tests/assign04/input/example09.c"
+                "-a",
+                "~/fall2023-tests/assign03/input/basictype01.c"
+                //"~/fall2023-tests/assign04/input/example09.c"
                 //"input/test2.c"
             ],
             "stopAtEntry": false,

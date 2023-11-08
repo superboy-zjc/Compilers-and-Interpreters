@@ -460,7 +460,8 @@ void SemanticAnalysis::visit_binary_expression(Node *n)
   // debug
   if (!n->get_kid(1)->has_type())
   {
-    opd1 = std::make_shared<BasicType>(BasicTypeKind::INT, true);
+    // opd1 = std::make_shared<BasicType>(BasicTypeKind::INT, true);
+    SemanticError::raise(n->get_loc(), "opd1 doesn't have a type!");
   }
   else
   {
@@ -468,7 +469,8 @@ void SemanticAnalysis::visit_binary_expression(Node *n)
   }
   if (!n->get_kid(2)->has_type())
   {
-    opd2 = std::make_shared<BasicType>(BasicTypeKind::INT, true);
+    // opd2 = std::make_shared<BasicType>(BasicTypeKind::INT, true);
+    SemanticError::raise(n->get_loc(), "opd2 doesn't have a type!");
   }
   else
   {
@@ -489,6 +491,7 @@ void SemanticAnalysis::visit_binary_expression(Node *n)
       {
         SemanticError::raise(n->get_loc(), "is not a lvalue");
       }
+      n->set_type(opd1);
     }
     else if (opd1->is_pointer() && (opd2->is_pointer() || opd2->is_array()))
     {
@@ -503,6 +506,7 @@ void SemanticAnalysis::visit_binary_expression(Node *n)
       {
         SemanticError::raise(n->get_loc(), "Right base type lack of qualifiers");
       }
+      n->set_type(opd1);
     }
     else if ((opd1->is_pointer() && !opd2->is_pointer()) || (!opd1->is_pointer() && opd2->is_pointer()))
     {
@@ -522,45 +526,23 @@ void SemanticAnalysis::visit_binary_expression(Node *n)
       SemanticError::raise(n->get_loc(), "errrrrrrrrror");
     }
   }
-  else if (opt->get_tag() == TOK_PLUS || opt->get_tag() == TOK_MINUS || opt->get_tag() == TOK_ASTERISK || opt->get_tag() == TOK_LT || opt->get_tag() == TOK_EQUALITY || opt->get_tag() == TOK_LOGICAL_AND || opt->get_tag() == TOK_LOGICAL_OR)
+  else if (is_operator_except_assignment(opt->get_tag()))
   {
-    // inplicit conversion through either operand
-    // rule 1
+    // bug: lack of consideration for qualified type
     if (opd1->is_integral() && opd2->is_integral())
     {
-      if (opd1->get_basic_type_kind() < BasicTypeKind::INT)
+      binary_implicitly_conversion(opd1, opd2);
+      // explicitly implicit conversion
+      std::shared_ptr<Type> old_opd1 = n->get_kid(1)->get_type();
+      std::shared_ptr<Type> old_opd2 = n->get_kid(2)->get_type();
+      if (!opd1->is_same(old_opd1.get()))
       {
-        // representing implicit
-        n->set_kid(1, opd1_node = promote_to_int(opd1_node));
-        opd1 = std::make_shared<BasicType>(BasicTypeKind::INT, opd1->is_signed());
+        n->set_kid(1, opd1_node = promote_to_a_type(opd1_node, opd1));
       }
-      // printf("type: opd1: %s\n opd2: %s\n", opd1->as_str().c_str(), opd2->as_str().c_str());
-
-      if (opd2->get_basic_type_kind() < BasicTypeKind::INT)
+      if (!opd2->is_same(old_opd2.get()))
       {
-        // representing implicit
-        n->set_kid(2, opd2_node = promote_to_int(opd2_node));
-        opd2 = std::make_shared<BasicType>(BasicTypeKind::INT, opd2->is_signed());
+        n->set_kid(2, opd2_node = promote_to_a_type(opd2_node, opd2));
       }
-      // rule 2
-      if (opd1->get_basic_type_kind() < opd2->get_basic_type_kind())
-      {
-        opd1 = std::make_shared<BasicType>(opd2->get_basic_type_kind(), true);
-      }
-      else if (opd1->get_basic_type_kind() > opd2->get_basic_type_kind())
-      {
-        opd2 = std::make_shared<BasicType>(opd1->get_basic_type_kind(), true);
-      }
-      // rule 3
-      if (!opd1->is_signed() || !opd2->is_signed())
-      {
-        opd1 = std::make_shared<BasicType>(opd2->get_basic_type_kind(), false);
-        opd2 = std::make_shared<BasicType>(opd1->get_basic_type_kind(), false);
-      }
-      // implicit node
-      // opd1_node->set_type(opd1);
-      // opd2_node->set_type(opd2);
-      //
       n->set_type(opd1);
       n->set_lvalue(false);
     }
@@ -604,16 +586,18 @@ void SemanticAnalysis::visit_unary_expression(Node *n)
   {
     if (opd->is_integral())
     {
-      if (opd->is_long())
-      {
-        res = opd;
-      }
-      else if (opd->get_basic_type_kind() < BasicTypeKind::INT)
+      // For unary (one operand) operations on integer values,
+      // the operand value should be promoted to int or unsigned
+      // int if it belongs to a less-precise type.
+      if (opd->get_basic_type_kind() < BasicTypeKind::INT)
       {
         // representing implicit
         n->set_kid(1, opd_node = promote_to_int(opd_node));
-
-        res = std::make_shared<BasicType>(BasicTypeKind::INT, opd->is_signed());
+        res = opd_node->get_type();
+      }
+      else
+      {
+        res = opd;
       }
       n->set_lvalue(false);
     }
@@ -748,7 +732,11 @@ void SemanticAnalysis::visit_function_call_expression(Node *n)
   n->set_type(res);
   n->set_lvalue(false);
 }
-
+// |     +--AST_FIELD_REF_EXPRESSION
+// |     |  +--AST_VARIABLE_REF
+// |     |  |  +--TOK_IDENT[b]
+// |     |  +--TOK_IDENT[x]
+// b.x
 void SemanticAnalysis::visit_field_ref_expression(Node *n)
 {
 
@@ -810,7 +798,12 @@ void SemanticAnalysis::visit_indirect_field_ref_expression(Node *n)
   // printf("%s", n->get_type()->as_str().c_str());
   n->set_lvalue(true);
 }
-
+// |     +--AST_ARRAY_ELEMENT_REF_EXPRESSION
+// |     |  +--AST_VARIABLE_REF
+// |     |  |  +--TOK_IDENT[a]
+// |     |  +--AST_LITERAL_VALUE
+// |     |     +--TOK_INT_LIT[3]
+// a[3] -> example 04
 void SemanticAnalysis::visit_array_element_ref_expression(Node *n)
 {
 
@@ -838,7 +831,8 @@ void SemanticAnalysis::visit_array_element_ref_expression(Node *n)
   // printf("%s", n->get_type()->as_str().c_str());
   n->set_lvalue(true);
 }
-
+// |     |  +--AST_VARIABLE_REF
+// |     |  |  +--TOK_IDENT[a]
 void SemanticAnalysis::visit_variable_ref(Node *n)
 {
   // TODO: implement
@@ -857,17 +851,16 @@ void SemanticAnalysis::visit_variable_ref(Node *n)
 
     // modified by assign04
     //  array_ref = new Symbol(SymbolKind::VARIABLE, name, variable_ref->get_type(), variable_ref->get_symtab(), true);
-
-    n->set_symbol(variable_ref);
     n->set_lvalue(false);
   }
   else
   {
-    n->set_symbol(variable_ref);
     n->set_lvalue(true);
   }
+  n->set_symbol(variable_ref);
 }
-
+// |     |  +--AST_LITERAL_VALUE
+// |     |     +--TOK_INT_LIT[3]
 void SemanticAnalysis::visit_literal_value(Node *n)
 {
   // TODO: implement
@@ -1019,4 +1012,69 @@ Node *SemanticAnalysis::implicit_conversion(Node *n, const std::shared_ptr<Type>
   std::unique_ptr<Node> conversion(new Node(AST_IMPLICIT_CONVERSION, {n}));
   conversion->set_type(type);
   return conversion.release();
+}
+// assign04
+Node *SemanticAnalysis::promote_to_a_type(Node *n, const std::shared_ptr<Type> &type)
+{
+  assert(n->has_type());
+  // assert(n->get_type()->get_basic_type_kind() < BasicTypeKind::INT);
+  // std::shared_ptr<Type> type(new BasicType(BasicTypeKind::INT, n->get_type()->is_signed()));
+  return implicit_conversion(n, type);
+}
+
+// assign04
+// + - * < == && || / %
+bool SemanticAnalysis::is_operator_except_assignment(unsigned tag)
+{
+  switch (tag)
+  {
+  case TOK_PLUS:
+  case TOK_MINUS:
+  case TOK_ASTERISK:
+  case TOK_LT:
+  case TOK_GT:
+  case TOK_EQUALITY:
+  case TOK_LOGICAL_AND:
+  case TOK_LOGICAL_OR:
+  case TOK_DIVIDE:
+  case TOK_MOD:
+    return true;
+    break;
+  default:
+    return false;
+    break;
+  }
+}
+void SemanticAnalysis::binary_implicitly_conversion(std::shared_ptr<Type> &opd1, std::shared_ptr<Type> &opd2)
+{
+  // implicit conversion through either operand
+  // rule 1
+  if (opd1->get_basic_type_kind() < BasicTypeKind::INT)
+  {
+    // representing implicit
+    // n->set_kid(1, opd1_node = promote_to_int(opd1_node));
+    opd1 = std::make_shared<BasicType>(BasicTypeKind::INT, opd1->is_signed());
+  }
+  // printf("type: opd1: %s\n opd2: %s\n", opd1->as_str().c_str(), opd2->as_str().c_str());
+  if (opd2->get_basic_type_kind() < BasicTypeKind::INT)
+  {
+    // representing implicit
+    // n->set_kid(2, opd2_node = promote_to_int(opd2_node));
+    opd2 = std::make_shared<BasicType>(BasicTypeKind::INT, opd2->is_signed());
+  }
+  // rule 2
+  if (opd1->get_basic_type_kind() < opd2->get_basic_type_kind())
+  {
+    opd1 = std::make_shared<BasicType>(opd2->get_basic_type_kind(), opd1->is_signed());
+  }
+  else if (opd1->get_basic_type_kind() > opd2->get_basic_type_kind())
+  {
+    opd2 = std::make_shared<BasicType>(opd1->get_basic_type_kind(), opd2->is_signed());
+  }
+  // rule 3
+  if (!opd1->is_signed() || !opd2->is_signed())
+  {
+    opd1 = std::make_shared<BasicType>(opd1->get_basic_type_kind(), false);
+    opd2 = std::make_shared<BasicType>(opd2->get_basic_type_kind(), false);
+  }
 }

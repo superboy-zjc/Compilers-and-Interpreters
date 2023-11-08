@@ -1,4 +1,6 @@
 int main(){
-       char	a,b;
-       a + b;
+int a;
+short b;
+a = 1;
+b = a;
 }
