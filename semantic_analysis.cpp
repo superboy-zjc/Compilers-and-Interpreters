@@ -525,7 +525,6 @@ void SemanticAnalysis::visit_binary_expression(Node *n)
         n->set_kid(2, opd2_node = promote_to_a_type(opd2_node, opd2));
         // printf("type: %s converted to %s\n", old_opd2->as_str().c_str(), n->get_kid(2)->get_type()->as_str().c_str());
       }
-      n->set_type(opd1);
       n->set_lvalue(false);
     }
     else if ((opd1->is_pointer() || opd1->is_array()) && opd2->is_integral())
@@ -533,14 +532,22 @@ void SemanticAnalysis::visit_binary_expression(Node *n)
       // if operaion performed on an array, it should be converted into a pointer type
       if (opd1->is_array())
       {
-        std::shared_ptr<Type> opd1 = std::make_shared<PointerType>(opd1->get_base_type());
+        opd1 = std::make_shared<PointerType>(opd1->get_base_type());
       }
-      n->set_type(opd1);
       n->set_lvalue(false);
     }
     else
     {
       SemanticError::raise(n->get_loc(), "error: invalid operands on binary expression");
+    }
+    // if relational operator or logical operator, the result type must be INT
+    if (is_relational_operator(opt->get_tag()) || is_logical_operator(opt->get_tag()))
+    {
+      n->set_type(std::make_shared<BasicType>(BasicTypeKind::INT, true));
+    }
+    else
+    {
+      n->set_type(opd1);
     }
   }
 }
@@ -990,7 +997,7 @@ Node *SemanticAnalysis::promote_to_a_type(Node *n, const std::shared_ptr<Type> &
 }
 
 // assign04
-// + - * < == && || / %
+// + - * / %
 bool SemanticAnalysis::is_operator_except_assignment(unsigned tag)
 {
   switch (tag)
@@ -998,13 +1005,50 @@ bool SemanticAnalysis::is_operator_except_assignment(unsigned tag)
   case TOK_PLUS:
   case TOK_MINUS:
   case TOK_ASTERISK:
-  case TOK_LT:
-  case TOK_GT:
-  case TOK_EQUALITY:
-  case TOK_LOGICAL_AND:
-  case TOK_LOGICAL_OR:
   case TOK_DIVIDE:
   case TOK_MOD:
+    // relational opt
+  case TOK_LT:
+  case TOK_LTE:
+  case TOK_GT:
+  case TOK_GTE:
+  case TOK_EQUALITY:
+  case TOK_INEQUALITY:
+    // logical opt
+  case TOK_LOGICAL_AND:
+  case TOK_LOGICAL_OR:
+    return true;
+    break;
+  default:
+    return false;
+    break;
+  }
+}
+// < <= > >= == !=
+bool SemanticAnalysis::is_relational_operator(unsigned tag)
+{
+  switch (tag)
+  {
+  case TOK_LT:
+  case TOK_LTE:
+  case TOK_GT:
+  case TOK_GTE:
+  case TOK_EQUALITY:
+  case TOK_INEQUALITY:
+    return true;
+    break;
+  default:
+    return false;
+    break;
+  }
+}
+// && ||
+bool SemanticAnalysis::is_logical_operator(unsigned tag)
+{
+  switch (tag)
+  {
+  case TOK_LOGICAL_AND:
+  case TOK_LOGICAL_OR:
     return true;
     break;
   default:
