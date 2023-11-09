@@ -79,6 +79,10 @@ private:
       RuntimeError::raise("arg vreg overflow!");
     }
   };
+  void reset_arg_vreg()
+  {
+    m_vregs.m_arg_vreg = 1;
+  }
 
   Operand emit_pointer_arithmetric(Operand base_opd, Operand idx_opd, const std::shared_ptr<Type> &base_type, const std::shared_ptr<Type> &idx_type);
   Operand emit_field_arithmetric(Operand base_opd, Symbol *struct_sym, std::string field_name);
@@ -88,4 +92,6 @@ private:
   Operand alloc_tmp_vreg();
   // Adjust an opcode for a sconv type
   HighLevelOpcode get_sconv_opcode(HighLevelOpcode base_opcode, const std::shared_ptr<Type> &type);
+  Operand get_var_storage_loc(Symbol *sym);
+  void mov_args_to_vrs(Node *arg_list);
 };

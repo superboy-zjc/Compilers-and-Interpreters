@@ -43,21 +43,8 @@ void HighLevelCodegen::visit_function_definition(Node *n)
   m_hl_iseq->append(new Instruction(HINS_enter, Operand(Operand::IMM_IVAL, total_local_storage)));
 
   // assign arguments to virtual register
-  Symbol *cur_sym;
-  for (auto i = n->get_kid(2)->cbegin(); i != n->get_kid(2)->cend(); ++i)
-  {
-    Node *func_parameter = *i;
-    cur_sym = func_parameter->get_symbol();
-    unsigned int arg_vreg = get_next_arg_vreg();
-
-    if (cur_sym->get_storage_type() == StorageType::VREG)
-    {
-      Operand param_opd(Operand::VREG, cur_sym->get_storage_location());
-      // arg virtual reg
-      HighLevelOpcode mov_opcode = get_opcode(HINS_mov_b, func_parameter->get_type());
-      m_hl_iseq->append(new Instruction(mov_opcode, param_opd, Operand(Operand::VREG, arg_vreg)));
-    }
-  }
+  Node *arg_list = n->get_kid(2);
+  mov_args_to_vrs(arg_list);
   // visit body
   visit(n->get_kid(3));
   // return label statement
@@ -233,9 +220,8 @@ void HighLevelCodegen::visit_if_else_statement(Node *n)
 
 void HighLevelCodegen::visit_binary_expression(Node *n)
 {
-  // TODO: implement
   // temperoray virtual registers
-  struct vreg saved_vreg = get_cur_vreg();
+  // struct vreg saved_vreg = get_cur_vreg();
   // visit_children(n);
   Node *opt = n->get_kid(0);
   Node *opd1_node = n->get_kid(1);
@@ -332,7 +318,7 @@ void HighLevelCodegen::visit_binary_expression(Node *n)
     n->set_operand(emit_basic_opt(optcode, tmp_dst, opd1, opd2, opd1_type));
   }
   // // recover virtual registers
-  set_cur_vreg(saved_vreg);
+  // set_cur_vreg(saved_vreg);
 }
 
 void HighLevelCodegen::visit_unary_expression(Node *n)
@@ -405,6 +391,9 @@ void HighLevelCodegen::visit_function_call_expression(Node *n)
 
   visit(n->get_kid(1));
   // assign arguments to virtual register
+
+  // save registers before call function
+  // struct vreg saved_vreg = get_cur_vreg();
   for (auto i = n->get_kid(1)->cbegin(); i != n->get_kid(1)->cend(); ++i)
   {
     Node *func_parameter = *i;
@@ -429,6 +418,8 @@ void HighLevelCodegen::visit_function_call_expression(Node *n)
   }
   // call instruction
   m_hl_iseq->append(new Instruction(HINS_call, Operand(Operand::LABEL, func_name)));
+  // recover argument registers
+  // set_cur_vreg(saved_vreg);
   // assign the return value in vreg0 into a new temporary virtual register
   mov_opcode = get_opcode(HINS_mov_b, func_type->get_base_type());
 
@@ -482,25 +473,9 @@ void HighLevelCodegen::visit_array_element_ref_expression(Node *n)
 
 void HighLevelCodegen::visit_variable_ref(Node *n)
 {
-  // TODO: implement
   Symbol *cur_sym = n->get_symbol();
-  unsigned int stor_loc = cur_sym->get_storage_location();
-  if (cur_sym->get_storage_type() == StorageType::VREG)
-  {
-    Operand dest(Operand::VREG, stor_loc);
-    n->set_operand(dest);
-  }
-  else if (cur_sym->get_storage_type() == StorageType::MEM)
-  {
-    // if lvalue, generate a sequence of instructions to compute the exact address of the referenced lvalue.
-    Operand lvalue_opd(Operand::VREG, get_next_local_vreg());
-    m_hl_iseq->append(new Instruction(HighLevelOpcode::HINS_localaddr, lvalue_opd, Operand(Operand::IMM_IVAL, cur_sym->get_storage_location())));
-    n->set_operand(lvalue_opd.to_memref());
-  }
-  else
-  {
-    RuntimeError::raise("unkown storage type");
-  }
+  Operand variable_ref = get_var_storage_loc(cur_sym);
+  n->set_operand(variable_ref);
 }
 
 void HighLevelCodegen::visit_literal_value(Node *n)
@@ -509,10 +484,10 @@ void HighLevelCodegen::visit_literal_value(Node *n)
   // for string constants!):
 
   LiteralValue val = n->get_literal_value();
+  Operand dest = alloc_tmp_vreg();
   unsigned literal_kind = n->get_kid(0)->get_tag();
   if (literal_kind == TOK_INT_LIT)
   {
-    Operand dest(Operand::VREG, get_next_local_vreg());
     Operand src(Operand::IMM_IVAL, val.get_int_value());
     std::shared_ptr<Type> src_type = n->get_type();
 
@@ -520,7 +495,6 @@ void HighLevelCodegen::visit_literal_value(Node *n)
   }
   else if (literal_kind == TOK_CHAR_LIT)
   {
-    Operand dest(Operand::VREG, get_next_local_vreg());
     Operand src(Operand::IMM_IVAL, static_cast<int>(val.get_char_value()));
     std::shared_ptr<Type> src_type = n->get_type();
 
@@ -658,4 +632,45 @@ HighLevelOpcode HighLevelCodegen::get_sconv_opcode(HighLevelOpcode base_opcode, 
 Operand HighLevelCodegen::alloc_tmp_vreg()
 {
   return Operand(Operand::VREG, get_next_local_vreg());
+}
+Operand HighLevelCodegen::get_var_storage_loc(Symbol *sym)
+{
+  unsigned int stor_loc = sym->get_storage_location();
+  Operand dest;
+  if (sym->get_storage_type() == StorageType::VREG)
+  {
+    dest = Operand(Operand::VREG, stor_loc);
+  }
+  else if (sym->get_storage_type() == StorageType::MEM)
+  {
+    // if lvalue, generate a sequence of instructions to compute the exact address of the referenced lvalue.
+    Operand lvalue_opd(Operand::VREG, get_next_local_vreg());
+    m_hl_iseq->append(new Instruction(HighLevelOpcode::HINS_localaddr, lvalue_opd, Operand(Operand::IMM_IVAL, sym->get_storage_location())));
+    dest = lvalue_opd.to_memref();
+  }
+  else
+  {
+    RuntimeError::raise("unkown storage type");
+  }
+  return dest;
+}
+// n -> arg_list
+void HighLevelCodegen::mov_args_to_vrs(Node *arg_list)
+{
+  Symbol *cur_sym;
+  for (auto i = arg_list->cbegin(); i != arg_list->cend(); ++i)
+  {
+    Node *func_parameter = *i;
+    cur_sym = func_parameter->get_symbol();
+    unsigned int arg_vreg = get_next_arg_vreg();
+
+    if (cur_sym->get_storage_type() == StorageType::VREG)
+    {
+      Operand param_opd(Operand::VREG, cur_sym->get_storage_location());
+      // arg virtual reg
+      HighLevelOpcode mov_opcode = get_opcode(HINS_mov_b, func_parameter->get_type());
+      m_hl_iseq->append(new Instruction(mov_opcode, param_opd, Operand(Operand::VREG, arg_vreg)));
+    }
+  }
+  reset_arg_vreg();
 }
