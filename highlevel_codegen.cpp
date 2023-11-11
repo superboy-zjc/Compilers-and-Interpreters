@@ -54,6 +54,8 @@ void HighLevelCodegen::visit_function_definition(Node *n)
   m_hl_iseq->append(new Instruction(HINS_leave, Operand(Operand::IMM_IVAL, total_local_storage)));
   m_hl_iseq->append(new Instruction(HINS_ret));
 
+  // assign04-2 save the virtual register status for low level code gen
+  n->set_cur_vreg(get_cur_vreg());
   // Perform high-level optimizations?
   if (m_optimize)
   {

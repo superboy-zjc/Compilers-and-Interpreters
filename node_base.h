@@ -112,7 +112,14 @@ public:
   {
     return m_operand;
   };
-  // void update_type(const std::shared_ptr<Type> &type);
+  unsigned int get_nums_of_allocated_virtual_registers()
+  {
+    return m_vregs.m_local_vreg - 10;
+  }
+  unsigned int get_last_allocated_virtual_registers()
+  {
+    return m_vregs.m_local_vreg - 1;
+  }
 };
 
 #endif // NODE_BASE_H

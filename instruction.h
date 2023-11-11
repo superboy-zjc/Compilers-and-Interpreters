@@ -15,6 +15,7 @@ private:
   Operand m_operands[3];
   std::string m_comment;
   Symbol *m_symbol;
+  int m_opcode_size = -1;
 
 public:
   Instruction(int opcode);
@@ -36,12 +37,26 @@ public:
 
   Operand get_last_operand() const;
 
-  void set_(const std::string &comment) { m_comment = comment; }
+  void set_comment(const std::string &comment) { m_comment = comment; }
   bool has_comment() const { return !m_comment.empty(); }
   const std::string &get_comment() const { return m_comment; }
 
   void set_symbol(Symbol *sym) { m_symbol = sym; }
   Symbol *get_symbol() const { return m_symbol; }
+
+  // assign04
+  void set_opcode_size(unsigned size)
+  {
+    m_opcode_size = size;
+  }
+  unsigned get_opcode_size()
+  {
+    if (m_opcode_size == -1)
+    {
+      printf("error here!");
+    }
+    return m_opcode_size;
+  }
 };
 
 #endif // INSTRUCTION_H

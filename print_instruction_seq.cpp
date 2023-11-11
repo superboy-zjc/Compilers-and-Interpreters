@@ -4,16 +4,21 @@
 #include "print_instruction_seq.h"
 
 PrintInstructionSequence::PrintInstructionSequence(const Formatter *formatter)
-  : m_formatter(formatter) {
+    : m_formatter(formatter)
+{
 }
 
-PrintInstructionSequence::~PrintInstructionSequence() {
+PrintInstructionSequence::~PrintInstructionSequence()
+{
 }
 
-void PrintInstructionSequence::print(const InstructionSequence *iseq) {
-  for (auto i = iseq->cbegin(); i != iseq->cend(); i++) {
+void PrintInstructionSequence::print(const InstructionSequence *iseq)
+{
+  for (auto i = iseq->cbegin(); i != iseq->cend(); i++)
+  {
     // print label if there is one
-    if (i.has_label()) {
+    if (i.has_label())
+    {
       printf("%s:\n", i.get_label().c_str());
     }
 
@@ -23,9 +28,11 @@ void PrintInstructionSequence::print(const InstructionSequence *iseq) {
 
     // if there is an "annotation" for the instruction, print it
     std::string annotation = get_instruction_annotation(iseq, *i);
-    if (!annotation.empty()) {
+    if (!annotation.empty())
+    {
       size_t len = formatted_ins.size();
-      if (len < 28) {
+      if (len < 28)
+      {
         printf("%s", "                            " + len);
       }
       printf(" /* %s */", annotation.c_str());
@@ -35,6 +42,7 @@ void PrintInstructionSequence::print(const InstructionSequence *iseq) {
   }
 }
 
-std::string PrintInstructionSequence::get_instruction_annotation(const InstructionSequence *iseq, Instruction *ins) {
-  return "";
+std::string PrintInstructionSequence::get_instruction_annotation(const InstructionSequence *iseq, Instruction *ins)
+{
+  return ins->get_comment();
 }
