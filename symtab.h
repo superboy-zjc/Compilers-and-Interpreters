@@ -71,16 +71,6 @@ public:
   {
     return m_address_taken;
   };
-
-  // // for calulating memory allocated for function definition
-  // unsigned int get_memory_storage_size() const
-  // {
-  //   return m_memory_storage_size;
-  // };
-  // void set_memory_storage_size(unsigned memory_storage_size)
-  // {
-  //   m_memory_storage_size = memory_storage_size;
-  // };
 };
 
 class SymbolTable

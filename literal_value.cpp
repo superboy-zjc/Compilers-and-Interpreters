@@ -4,49 +4,38 @@
 #include "literal_value.h"
 
 LiteralValue::LiteralValue()
-  : m_kind(LiteralValueKind::NONE)
-  , m_intval(0)
-  , m_is_unsigned(false)
-  , m_is_long(false) {
+    : m_kind(LiteralValueKind::NONE), m_intval(0), m_is_unsigned(false), m_is_long(false)
+{
 }
 
 LiteralValue::LiteralValue(int64_t val, bool is_unsigned, bool is_long)
-  : m_kind(LiteralValueKind::INTEGER)
-  , m_intval(val)
-  , m_is_unsigned(is_unsigned)
-  , m_is_long(is_long) {
+    : m_kind(LiteralValueKind::INTEGER), m_intval(val), m_is_unsigned(is_unsigned), m_is_long(is_long)
+{
 }
 
 LiteralValue::LiteralValue(char c)
-  : m_kind(LiteralValueKind::CHARACTER)
-  , m_intval(0)
-  , m_strval(1, c)
-  , m_is_unsigned(false)
-  , m_is_long(false) {
-
+    : m_kind(LiteralValueKind::CHARACTER), m_intval(0), m_strval(1, c), m_is_unsigned(false), m_is_long(false)
+{
 }
 
 LiteralValue::LiteralValue(const std::string &s)
-  : m_kind(LiteralValueKind::STRING)
-  , m_intval(0)
-  , m_strval(s)
-  , m_is_unsigned(false)
-  , m_is_long(false) {
+    : m_kind(LiteralValueKind::STRING), m_intval(0), m_strval(s), m_is_unsigned(false), m_is_long(false)
+{
 }
 
 LiteralValue::LiteralValue(const LiteralValue &other)
-  : m_kind(other.m_kind)
-  , m_intval(other.m_intval)
-  , m_strval(other.m_strval)
-  , m_is_unsigned(other.m_is_unsigned)
-  , m_is_long(other.m_is_long) {
+    : m_kind(other.m_kind), m_intval(other.m_intval), m_strval(other.m_strval), m_is_unsigned(other.m_is_unsigned), m_is_long(other.m_is_long)
+{
 }
 
-LiteralValue::~LiteralValue() {
+LiteralValue::~LiteralValue()
+{
 }
 
-LiteralValue &LiteralValue::operator=(const LiteralValue &rhs) {
-  if (this != &rhs) {
+LiteralValue &LiteralValue::operator=(const LiteralValue &rhs)
+{
+  if (this != &rhs)
+  {
     m_kind = rhs.m_kind;
     m_intval = rhs.m_intval;
     m_strval = rhs.m_strval;
@@ -56,59 +45,88 @@ LiteralValue &LiteralValue::operator=(const LiteralValue &rhs) {
   return *this;
 }
 
-LiteralValueKind LiteralValue::get_kind() const {
+LiteralValueKind LiteralValue::get_kind() const
+{
   return m_kind;
 }
 
-int64_t LiteralValue::get_int_value() const {
+int64_t LiteralValue::get_int_value() const
+{
   assert(m_kind == LiteralValueKind::INTEGER);
   return m_intval;
 }
 
-char LiteralValue::get_char_value() const {
+char LiteralValue::get_char_value() const
+{
   assert(m_kind == LiteralValueKind::CHARACTER);
   assert(m_strval.size() == 1);
   return m_strval[0];
 }
 
-std::string LiteralValue::get_str_value() const {
+std::string LiteralValue::get_str_value() const
+{
   assert(m_kind == LiteralValueKind::STRING);
   return m_strval;
 }
 
-bool LiteralValue::is_unsigned() const {
+// assign4-02
+// for define string constants' label
+void LiteralValue::set_str_value(std::string strval)
+{
+  assert(m_kind == LiteralValueKind::STRING);
+  m_strval = strval;
+}
+
+bool LiteralValue::is_unsigned() const
+{
   assert(m_kind == LiteralValueKind::INTEGER);
   return m_is_unsigned;
 }
 
-bool LiteralValue::is_long() const {
+bool LiteralValue::is_long() const
+{
   assert(m_kind == LiteralValueKind::INTEGER);
   return m_is_long;
 }
 
-LiteralValue LiteralValue::from_char_literal(const std::string &lexeme, const Location &loc) {
+LiteralValue LiteralValue::from_char_literal(const std::string &lexeme, const Location &loc)
+{
   std::string s = strip_quotes(lexeme, '\'');
 
   char cval;
 
-  if (s[0] == '\\') {
+  if (s[0] == '\\')
+  {
     // the lexer currently only allows one escape character
     // (so, for example, it doesn't support hex escapes)
     assert(s.size() == 2);
 
     // decode the escape sequence
-    switch (s[1]) {
-    case 't': cval = '\t'; break;
-    case 'n': cval = '\n'; break;
-    case 'r': cval = '\r'; break;
-    case '\'': cval = '\''; break;
-    case '\\': cval = '\\'; break;
+    switch (s[1])
+    {
+    case 't':
+      cval = '\t';
+      break;
+    case 'n':
+      cval = '\n';
+      break;
+    case 'r':
+      cval = '\r';
+      break;
+    case '\'':
+      cval = '\'';
+      break;
+    case '\\':
+      cval = '\\';
+      break;
     default:
       SemanticError::raise(loc, "Unsupported escape character %d", int(s[1]));
     }
 
     return LiteralValue(cval);
-  } else {
+  }
+  else
+  {
     assert(s.size() == 1);
     if (s[0] < 32 || s[0] > 127)
       SemanticError::raise(loc, "Invalid literal character value %d", int(s[0]));
@@ -116,15 +134,19 @@ LiteralValue LiteralValue::from_char_literal(const std::string &lexeme, const Lo
   }
 }
 
-LiteralValue LiteralValue::from_int_literal(const std::string &lexeme, const Location &loc) {
+LiteralValue LiteralValue::from_int_literal(const std::string &lexeme, const Location &loc)
+{
   std::string s = lexeme;
 
   int64_t value;
 
-  if (s.rfind("0x", 0) == 0 || s.rfind("0X", 0) == 0) {
+  if (s.rfind("0x", 0) == 0 || s.rfind("0X", 0) == 0)
+  {
     // hex constant
     value = int64_t(std::stoll(lexeme, nullptr, 16));
-  } else {
+  }
+  else
+  {
     // decimal int literal (we don't support octal constants)
     value = int64_t(std::stoll(lexeme, nullptr, 10));
   }
@@ -132,15 +154,19 @@ LiteralValue LiteralValue::from_int_literal(const std::string &lexeme, const Loc
   // a somewhat crude way of checking for trailing 'L' and 'U' suffixes
   bool is_unsigned = false, is_long = false;
   size_t i = s.size() - 1;
-  while (i > 0) {
-    switch (s[i]) {
+  while (i > 0)
+  {
+    switch (s[i])
+    {
     case 'l':
     case 'L':
-      is_long = true; break;
+      is_long = true;
+      break;
 
     case 'u':
     case 'U':
-      is_unsigned = true; break;
+      is_unsigned = true;
+      break;
 
     default:
       i = 1;
@@ -152,28 +178,42 @@ LiteralValue LiteralValue::from_int_literal(const std::string &lexeme, const Loc
   return LiteralValue(value, is_unsigned, is_long);
 }
 
-LiteralValue LiteralValue::from_str_literal(const std::string &lexeme, const Location &loc) {
+LiteralValue LiteralValue::from_str_literal(const std::string &lexeme, const Location &loc)
+{
   std::string s = strip_quotes(lexeme, '"');
 
   size_t pos = 0;
 
   std::string value;
 
-  while (pos < s.size()) {
+  while (pos < s.size())
+  {
     char c = s[pos];
 
     if (c != '\\')
       value.push_back(c);
-    else {
+    else
+    {
       assert(pos + 1 < s.size());
       ++pos;
       char cval;
-      switch (s[pos]) {
-      case 't': cval = '\t'; break;
-      case 'n': cval = '\n'; break;
-      case 'r': cval = '\r'; break;
-      case '"': cval = '"'; break;
-      case '\\': cval = '\\'; break;
+      switch (s[pos])
+      {
+      case 't':
+        cval = '\t';
+        break;
+      case 'n':
+        cval = '\n';
+        break;
+      case 'r':
+        cval = '\r';
+        break;
+      case '"':
+        cval = '"';
+        break;
+      case '\\':
+        cval = '\\';
+        break;
       default:
         SemanticError::raise(loc, "Unsupported escape character %d", int(s[1]));
       }
@@ -186,7 +226,8 @@ LiteralValue LiteralValue::from_str_literal(const std::string &lexeme, const Loc
   return LiteralValue(value);
 }
 
-std::string LiteralValue::strip_quotes(const std::string &lexeme, char quote) {
+std::string LiteralValue::strip_quotes(const std::string &lexeme, char quote)
+{
   assert(lexeme.size() >= 3);
   assert(lexeme.front() == quote);
   assert(lexeme.back() == quote);

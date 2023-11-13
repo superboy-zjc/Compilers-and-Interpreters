@@ -20,6 +20,7 @@
 
 #include <cassert>
 #include "node_base.h"
+#include "exceptions.h"
 
 NodeBase::NodeBase()
 {
@@ -35,11 +36,19 @@ void NodeBase::set_symbol(Symbol *symbol)
     assert(!has_symbol());
     assert(m_type == nullptr);
     m_symbol = symbol;
+    // printf("symbol: %d, %s\n", int(m_symbol->get_kind()), m_symbol->get_name().c_str());
 }
 
 void NodeBase::set_type(const std::shared_ptr<Type> &type)
 {
     assert(!has_symbol());
+    // weird !!!!!!!
+    // if (has_symbol())
+    // {
+    //     m_symbol->set_type(type);
+    //     return;
+    //     // printf("!!!******!!! symbol: %d, %s\n", int(sym->get_kind()), sym->get_name().c_str());
+    // }
     assert(!m_type);
     m_type = type;
 }
@@ -80,7 +89,14 @@ std::shared_ptr<Type> NodeBase::get_type() const
 
 void NodeBase::set_lvalue(bool flag) { m_lvalue = flag; }
 bool NodeBase::if_lvalue() { return m_lvalue; }
-
+void NodeBase::set_string_constant_label(std::string label_name)
+{
+    if (m_value.get_kind() != LiteralValueKind::STRING)
+    {
+        RuntimeError::raise("Not a String Literal Value!");
+    }
+    m_value.set_str_value(label_name);
+}
 // assign04 for updating the type in the expression node
 // void NodeBase::update_type(const std::shared_ptr<Type> &type)
 // {

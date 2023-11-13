@@ -157,9 +157,10 @@ void Context::highlevel_codegen(ModuleCollector *module_collector, bool optimize
   LocalStorageAllocation local_storage_alloc;
   local_storage_alloc.visit(m_ast);
 
-  // TODO: find all of the string constants in the AST
+  // find all of the string constants in the AST
   //       and call the ModuleCollector's collect_string_constant
   //       member function for each one
+  collect_string_constants(m_ast, module_collector);
 
   // collect all of the global variables
   SymbolTable *globals = m_sema.get_global_symtab();
@@ -194,6 +195,26 @@ void Context::highlevel_codegen(ModuleCollector *module_collector, bool optimize
       // make sure local label numbers are not reused between functions
       next_label_num = hl_codegen.get_next_label_num();
     }
+  }
+}
+// collect all the string constants from AST nodes
+void Context::collect_string_constants(Node *node, ModuleCollector *module_collector)
+{
+  if (node == nullptr)
+  {
+    return;
+  }
+  if (node->get_tag() == AST_LITERAL_VALUE && node->get_kid(0)->get_tag() == TOK_STR_LIT)
+  {
+    LiteralValue string = node->get_literal_value();
+    std::string next_label = get_next_constant_label();
+    module_collector->collect_string_constant(next_label, encodeString(string.get_str_value()));
+    node->set_string_constant_label(next_label);
+  }
+  for (auto i = node->cbegin(); i != node->cend(); ++i)
+  {
+    Node *n = *i;
+    collect_string_constants(n, module_collector);
   }
 }
 

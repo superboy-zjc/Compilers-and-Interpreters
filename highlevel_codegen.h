@@ -85,7 +85,7 @@ private:
   }
 
   Operand emit_pointer_arithmetric(Operand base_opd, Operand idx_opd, const std::shared_ptr<Type> &base_type, const std::shared_ptr<Type> &idx_type);
-  Operand emit_field_arithmetric(Operand base_opd, Symbol *struct_sym, std::string field_name);
+  Operand emit_field_arithmetric(Operand base_opd, const std::shared_ptr<Type> &type, std::string field_name);
 
   Operand emit_basic_opt(HighLevelOpcode basic_code, Operand dst_opd, Operand src_opd, const std::shared_ptr<Type> &src_type);
   Operand emit_basic_opt(HighLevelOpcode basic_code, Operand dst_opd, Operand src1_opd, Operand src2_opd, const std::shared_ptr<Type> &src_type);
@@ -94,4 +94,5 @@ private:
   HighLevelOpcode get_sconv_opcode(HighLevelOpcode base_opcode, const std::shared_ptr<Type> &type);
   Operand get_var_storage_loc(Symbol *sym);
   void mov_args_to_vrs(Node *arg_list);
+  void mov_memref_to_tmp();
 };

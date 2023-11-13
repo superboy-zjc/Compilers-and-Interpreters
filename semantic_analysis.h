@@ -47,6 +47,8 @@ public:
   Node *promote_to_a_type(Node *n, const std::shared_ptr<Type> &type);
   bool is_operator_except_assignment(unsigned tag);
   void binary_implicitly_conversion(std::shared_ptr<Type> &opd1, std::shared_ptr<Type> &opd2);
+  void funcdef_implicitly_conversion(std::shared_ptr<Type> &opd1, std::shared_ptr<Type> &opd2);
+
   bool is_relational_operator(unsigned tag);
   bool is_logical_operator(unsigned tag);
 

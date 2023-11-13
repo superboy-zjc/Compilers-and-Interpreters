@@ -40,6 +40,7 @@ public:
   int64_t get_int_value() const;
   char get_char_value() const;
   std::string get_str_value() const;
+  void set_str_value(std::string strval);
 
   bool is_unsigned() const;
   bool is_long() const;

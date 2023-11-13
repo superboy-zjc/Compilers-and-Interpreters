@@ -382,27 +382,39 @@ void SemanticAnalysis::visit_statement_list(Node *n)
 void SemanticAnalysis::visit_return_expression_statement(Node *n)
 {
   std::shared_ptr<Type> res;
-  Node *opd1_node = n->get_kid(0);
-  visit(opd1_node);
+  Node *return_node = n->get_kid(0);
+  visit(return_node);
 
-  if (!opd1_node->has_type())
+  if (!return_node->has_type())
   {
     SemanticError::raise(n->get_loc(), "return value doesn't have a type!");
   }
-  std::shared_ptr<Type> opd1 = n->get_kid(0)->get_type();
+  std::shared_ptr<Type> return_type = return_node->get_type();
 
   //
   Symbol *function_retype = m_cur_symtab->lookup_recursive("***return type***");
-  Type *rawPointer = function_retype->get_type().get();
+  std::shared_ptr<Type> predefined_return_type = function_retype->get_type();
 
-  if (!opd1->is_same(rawPointer))
+  if (!return_type->is_same(predefined_return_type.get()))
   {
     // printf("type: opd1: %s\n opd2: %s\n", opd1->as_str().c_str(), rawPointer->as_str().c_str());
-
-    SemanticError::raise(n->get_loc(), "Return type error: function return value incompatible with expected value");
+    if (return_type->is_integral() && predefined_return_type->is_integral())
+    {
+      funcdef_implicitly_conversion(return_type, predefined_return_type);
+      // explicitly implicit conversion
+      std::shared_ptr<Type> old_return_type = return_node->get_type();
+      if (!return_type->is_same(old_return_type.get()))
+      {
+        n->set_kid(0, return_node = promote_to_a_type(return_node, predefined_return_type));
+        // printf("type: %s converted to %s\n", old_return_type->as_str().c_str(), return_type->as_str().c_str());
+      }
+    }
+    else
+    {
+      SemanticError::raise(n->get_loc(), "Return type error: function return value incompatible with expected value");
+    }
   }
-
-  n->set_type(opd1);
+  n->set_type(predefined_return_type);
 }
 
 void SemanticAnalysis::visit_struct_type_definition(Node *n)
@@ -540,6 +552,11 @@ void SemanticAnalysis::visit_binary_expression(Node *n)
     {
       SemanticError::raise(n->get_loc(), "error: invalid operands on binary expression");
     }
+
+    // if (n->get_kid(0)->get_tag() == TOK_PLUS && n->get_kid(1)->get_kid(0)->get_str() == "i" && n->get_kid(2)->get_kid(0)->get_str() == "1")
+    // {
+    //   printf("debug!\n");
+    // }
     // if relational operator or logical operator, the result type must be INT
     if (is_relational_operator(opt->get_tag()) || is_logical_operator(opt->get_tag()))
     {
@@ -682,34 +699,42 @@ void SemanticAnalysis::visit_function_call_expression(Node *n)
   // check arguments type
   for (unsigned int i = 0; i < fun_call->get_type()->get_num_members(); i++)
   {
-    Type *rawPointer;
-    std::shared_ptr<Type> array_type;
+    std::shared_ptr<Type> pre_defined_arg = fun_call->get_type()->get_member(i).get_type();
+    std::shared_ptr<Type> passed_arg = args_type[i];
+    Node *passed_arg_node = args->get_kid(i);
     // for callee
     //  array in the function parameter should be recognized as a pointer
-    if (fun_call->get_type()->get_member(i).get_type()->is_array())
+    if (pre_defined_arg->is_array())
     {
-      array_type = fun_call->get_type()->get_member(i).get_type();
-      array_type = std::make_shared<PointerType>(array_type->get_base_type());
-      rawPointer = array_type.get();
-    }
-    else
-    {
-      rawPointer = fun_call->get_type()->get_member(i).get_type().get();
+      pre_defined_arg = std::make_shared<PointerType>(pre_defined_arg->get_base_type());
     }
     // for caller
     //  array in the function argument should be recognized as a pointer
-    if (args_type[i]->is_array())
+    if (passed_arg->is_array())
     {
-      args_type[i] = std::make_shared<PointerType>(args_type[i]->get_base_type());
+      passed_arg = std::make_shared<PointerType>(passed_arg->get_base_type());
       // assign04 for patching the argument expression node derivated from the AST function call node
       // update the argument with array reference to a pointer type
       // args->get_kid(i)->update_type(args_type[i]);
     }
-    if (!args_type[i]->is_same(rawPointer))
+    if (!passed_arg->is_same(pre_defined_arg.get()))
     {
       // printf("type: opd1: %s\n opd2: %s\n", args_type[i]->as_str().c_str(), rawPointer->as_str().c_str());
-
-      SemanticError::raise(n->get_loc(), "Wrong Argument format");
+      if (passed_arg->is_integral() && pre_defined_arg->is_integral())
+      {
+        funcdef_implicitly_conversion(passed_arg, pre_defined_arg);
+        // explicitly implicit conversion
+        std::shared_ptr<Type> old_passed_arg_type = passed_arg_node->get_type();
+        if (!passed_arg->is_same(old_passed_arg_type.get()))
+        {
+          args->set_kid(i, passed_arg_node = promote_to_a_type(passed_arg_node, passed_arg));
+          // printf("type: %s converted to %s\n", old_passed_arg_type->as_str().c_str(), passed_arg_node->get_type()->as_str().c_str());
+        }
+      }
+      else
+      {
+        SemanticError::raise(n->get_loc(), "Wrong Argument format");
+      }
     }
   }
 
@@ -874,7 +899,7 @@ void SemanticAnalysis::visit_literal_value(Node *n)
     test = LiteralValue::from_char_literal(literal->get_str(), n->get_loc());
     // save the liternal value into the node
     n->set_literal_value(test);
-    std::shared_ptr<Type> literal_type(new BasicType(BasicTypeKind::INT, true));
+    std::shared_ptr<Type> literal_type(new BasicType(BasicTypeKind::CHAR, true));
 
     n->set_type(literal_type);
   }
@@ -1087,5 +1112,22 @@ void SemanticAnalysis::binary_implicitly_conversion(std::shared_ptr<Type> &opd1,
   {
     opd1 = std::make_shared<BasicType>(opd1->get_basic_type_kind(), false);
     opd2 = std::make_shared<BasicType>(opd2->get_basic_type_kind(), false);
+  }
+}
+
+void SemanticAnalysis::funcdef_implicitly_conversion(std::shared_ptr<Type> &opd1, std::shared_ptr<Type> &opd2)
+{
+  // implicit conversion through either operand
+  // rule 2
+  if (opd1->get_basic_type_kind() < opd2->get_basic_type_kind())
+  {
+    opd1 = std::make_shared<BasicType>(opd2->get_basic_type_kind(), opd1->is_signed());
+  }
+  // rule 3
+  // if opd1 is signed and opd2 is unsigned, that means opd1 needs to be converted into unsigned
+  // otherwise, we don't have to do anything special
+  if (opd1->is_signed() && !opd2->is_signed())
+  {
+    opd1 = std::make_shared<BasicType>(opd1->get_basic_type_kind(), false);
   }
 }

@@ -62,7 +62,6 @@ void Symbol::set_storage_type(StorageType storage_type)
   m_storage_type = storage_type;
 }
 //
-
 ////////////////////////////////////////////////////////////////////////
 // SymbolTable implementation
 ////////////////////////////////////////////////////////////////////////
@@ -176,9 +175,10 @@ bool SymbolTable::remove_symbol(const std::string &name)
   if (it != m_lookup.end())
   {
     unsigned pos = it->second;
-    delete m_symbols[pos]; // 释放内存
-    m_symbols.pop_back();  // 将指针设为nullptr
-    m_lookup.erase(it);    // 从映射中移除
+    delete m_symbols[pos];
+    m_symbols[pos] = nullptr;
+    m_symbols.erase(m_symbols.begin() + pos);
+    m_lookup.erase(it);
     return true;
   }
   return false;

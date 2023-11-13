@@ -1,4 +1,4 @@
-for i in {01..15}; do
+for i in {01..30}; do
   # 当前输出保存在一个临时文件中
   ./nearly_cc -h ~/fall2023-tests/assign04/input/example$i.c > /tmp/example$i.out
 

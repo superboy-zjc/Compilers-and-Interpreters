@@ -87,8 +87,8 @@ void LocalStorageAllocation::visit_function_declaration(Node *n)
   StorageCalculator saved_storage_status = m_storage_calc;
   // save the virtual registers before entering into a new scope
   struct vreg saved_vregs = get_cur_vreg();
-  visit_children(n);
-  // recover  the virtual registers after exiting into a new scope
+  // visit_children(n);
+  //  recover  the virtual registers after exiting into a new scope
   set_cur_vreg(saved_vregs);
   // recover the storage status
   m_storage_calc = saved_storage_status;

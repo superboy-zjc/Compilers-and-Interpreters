@@ -30,10 +30,12 @@ class Node;
 // The Context class gathers together all of the objects/data
 // used in the compilation process, and orchestrates the various
 // passes and transformations.
-class Context {
+class Context
+{
 private:
   Node *m_ast;
   SemanticAnalysis m_sema;
+  int constant_label = 0;
 
   // copy ctor and assignment operator not allowed
   Context(const Context &);
@@ -56,6 +58,37 @@ public:
   void analyze();
   void highlevel_codegen(ModuleCollector *module_collector, bool optimize = false);
   void lowlevel_codegen(ModuleCollector *module_collector, bool optimize = false);
+  void collect_string_constants(Node *node, ModuleCollector *module_collector);
+  std::string get_next_constant_label()
+  {
+    std::string label = "_str" + std::to_string(constant_label);
+    constant_label++;
+    return label;
+  }
+  std::string encodeString(const std::string &str)
+  {
+    std::string encodedStr;
+    for (char ch : str)
+    {
+      switch (ch)
+      {
+      case '\n':
+        encodedStr += "\\n";
+        break;
+      case '\t':
+        encodedStr += "\\t";
+        break;
+      case '\"':
+        encodedStr += "\\\"";
+        break;
+      //
+      default:
+        encodedStr += ch;
+        break;
+      }
+    }
+    return encodedStr;
+  }
 };
 
 #endif // CONTEXT_H

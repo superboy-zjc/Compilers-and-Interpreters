@@ -40,9 +40,10 @@ struct vreg
 class NodeBase
 {
 private:
-  // TODO: fields (pointer to Type, pointer to Symbol, etc.)
+  // fields (pointer to Type, pointer to Symbol, etc.)
   std::shared_ptr<Type> m_type;
-  Symbol *m_symbol;
+  // there is something weird happening when m_Symbol was not initialized.
+  Symbol *m_symbol = nullptr;
   bool m_lvalue = true;
 
   // copy ctor and assignment operator not supported
@@ -120,6 +121,7 @@ public:
   {
     return m_vregs.m_local_vreg - 1;
   }
+  void set_string_constant_label(std::string label_name);
 };
 
 #endif // NODE_BASE_H
