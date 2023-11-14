@@ -42,13 +42,6 @@ void NodeBase::set_symbol(Symbol *symbol)
 void NodeBase::set_type(const std::shared_ptr<Type> &type)
 {
     assert(!has_symbol());
-    // weird !!!!!!!
-    // if (has_symbol())
-    // {
-    //     m_symbol->set_type(type);
-    //     return;
-    //     // printf("!!!******!!! symbol: %d, %s\n", int(sym->get_kind()), sym->get_name().c_str());
-    // }
     assert(!m_type);
     m_type = type;
 }

@@ -24,6 +24,10 @@ const std::map<HighLevelOpcode, LowLevelOpcode> HL_TO_LL = {
     {HINS_sub_q, MINS_SUBQ},
     {HINS_mul_l, MINS_IMULL},
     {HINS_mul_q, MINS_IMULQ},
+    {HINS_div_l, MINS_IDIVL},
+    {HINS_div_q, MINS_IDIVQ},
+    {HINS_mod_l, MINS_IDIVL},
+    {HINS_mod_q, MINS_IDIVQ},
     {HINS_mov_b, MINS_MOVB},
     {HINS_mov_w, MINS_MOVW},
     {HINS_mov_l, MINS_MOVL},
@@ -262,7 +266,7 @@ void LowLevelCodeGen::translate_instruction(Instruction *hl_ins, const std::shar
     return;
   }
 
-  if (match_hl(HINS_add_b, hl_opcode))
+  if (match_hl(HINS_add_b, hl_opcode) || match_hl(HINS_sub_b, hl_opcode))
   {
     int size = highlevel_opcode_get_source_operand_size(hl_opcode);
 
@@ -276,7 +280,7 @@ void LowLevelCodeGen::translate_instruction(Instruction *hl_ins, const std::shar
     if (src1_operand.is_memref() && src2_operand.is_memref())
     {
       // move source operand into a temporary register
-      src2_operand = mov_to_temp(src2_operand, size, ll_iseq);
+      src2_operand = emit_mov_to_temp(src2_operand, size, ll_iseq);
     }
 
     ll_iseq->append(new Instruction(add_opcode, src1_operand, src2_operand));
@@ -299,23 +303,54 @@ void LowLevelCodeGen::translate_instruction(Instruction *hl_ins, const std::shar
 
     if (src1_operand.is_memref() && src2_operand.is_memref())
     {
-      src1_operand = mov_to_temp(src1_operand, size, ll_iseq);
-      src2_operand = mov_to_temp(src2_operand, size, ll_iseq);
+      src1_operand = emit_mov_to_temp(src1_operand, size, ll_iseq);
+      src2_operand = emit_mov_to_temp(src2_operand, size, ll_iseq);
     }
     else if (src1_operand.is_memref())
     {
       // move source operand into a temporary register
-      src1_operand = mov_to_temp(src1_operand, size, ll_iseq);
+      src1_operand = emit_mov_to_temp(src1_operand, size, ll_iseq);
     }
     else if (src2_operand.is_memref())
     {
       // move source operand into a temporary register
-      src2_operand = mov_to_temp(src2_operand, size, ll_iseq);
+      src2_operand = emit_mov_to_temp(src2_operand, size, ll_iseq);
     }
 
     ll_iseq->append(new Instruction(mul_opcode, src1_operand, src2_operand));
 
     emit_mov_hl_ll(size, src2_operand, dest_operand, ll_iseq);
+
+    add_comment(hl_ins, ll_iseq, first_instruct_idx);
+    return;
+  }
+
+  if (match_hl(HINS_div_b, hl_opcode) || match_hl(HINS_mod_b, hl_opcode))
+  {
+    int size = highlevel_opcode_get_source_operand_size(hl_opcode);
+
+    Operand src1_operand = get_ll_operand(hl_ins->get_operand(2), size, ll_iseq);
+    Operand src2_operand = get_ll_operand(hl_ins->get_operand(1), size, ll_iseq);
+    Operand dest_operand = get_ll_operand(hl_ins->get_operand(0), size, ll_iseq);
+    // movl     -32(%rbp), %eax     /* div_l    vr13, vr10, vr11 */
+    src2_operand = emit_mov_hl_ll(size, src2_operand, Operand(select_mreg_kind(size), MREG_RAX), ll_iseq);
+    // cdq
+    ll_iseq->append(new Instruction(MINS_CDQ));
+    // movl     -24(%rbp), %r10d
+    src1_operand = emit_mov_to_temp(src1_operand, size, ll_iseq);
+    // idivl    %r10d
+    ll_iseq->append(new Instruction(HL_TO_LL.at(hl_opcode), src1_operand));
+
+    if (match_hl(HINS_div_b, hl_opcode))
+    {
+      // movl     %eax, -8(%rbp)
+      emit_mov_hl_ll(size, src2_operand, dest_operand, ll_iseq);
+    }
+    else
+    {
+      // movl     %edx, -8(%rbp)
+      emit_mov_hl_ll(size, Operand(select_mreg_kind(size), MREG_RDX), dest_operand, ll_iseq);
+    }
 
     add_comment(hl_ins, ll_iseq, first_instruct_idx);
     return;
@@ -329,7 +364,7 @@ void LowLevelCodeGen::translate_instruction(Instruction *hl_ins, const std::shar
     return;
   }
 
-  if (match_hl(HINS_cmplte_b, hl_opcode) || match_hl(HINS_cmplt_b, hl_opcode) || match_hl(HINS_cmpeq_b, hl_opcode))
+  if (hl_opcode >= HINS_cmplt_b && hl_opcode <= HINS_cmpneq_q)
   {
     int size = highlevel_opcode_get_source_operand_size(hl_opcode);
 
@@ -342,7 +377,7 @@ void LowLevelCodeGen::translate_instruction(Instruction *hl_ins, const std::shar
     if (src1_operand.is_memref() && src2_operand.is_memref())
     {
       // move source operand into a temporary register
-      src2_operand = mov_to_temp(src2_operand, size, ll_iseq);
+      src2_operand = emit_mov_to_temp(src2_operand, size, ll_iseq);
     }
     ll_iseq->append(new Instruction(cmp_opcode, src1_operand, src2_operand));
 
@@ -397,7 +432,7 @@ void LowLevelCodeGen::translate_instruction(Instruction *hl_ins, const std::shar
     Operand src_operand = get_ll_operand(hl_ins->get_operand(1), src_size, ll_iseq);
     Operand dest_operand = get_ll_operand(hl_ins->get_operand(0), src_size, ll_iseq);
     // movl X(%rbp), %r10X
-    src_operand = mov_to_temp(src_operand, src_size, ll_iseq);
+    src_operand = emit_mov_to_temp(src_operand, src_size, ll_iseq);
     // movslq %r10X, %r10
     Operand tmp(select_mreg_kind(dst_size), src_operand.get_base_reg());
     ll_iseq->append(new Instruction(HL_TO_LL.at(hl_opcode), src_operand, tmp));
@@ -419,6 +454,28 @@ void LowLevelCodeGen::translate_instruction(Instruction *hl_ins, const std::shar
     ll_iseq->append(new Instruction(MINS_LEAQ, get_lea_offset_operand(src_operand), tmp));
     // movq %r10, -72(%rbp)
     emit_mov_hl_ll(size, tmp, dest_operand, ll_iseq);
+
+    add_comment(hl_ins, ll_iseq, first_instruct_idx);
+    return;
+  }
+
+  if (hl_opcode == HINS_spill_b)
+  {
+    return;
+  }
+
+  if (match_hl(HINS_neg_b, hl_opcode))
+  {
+    int size = highlevel_opcode_get_source_operand_size(hl_opcode);
+
+    Operand src_operand = get_ll_operand(hl_ins->get_operand(1), size, ll_iseq);
+    Operand dest_operand = get_ll_operand(hl_ins->get_operand(0), size, ll_iseq);
+    // movl     -16(%rbp), %r10d    /* neg_l    vr12, vr11 */
+    Operand tmp = emit_mov_to_temp(src_operand, size, ll_iseq);
+    // movl     $0, -8(%rbp)
+    emit_mov_hl_ll(size, Operand(Operand::IMM_IVAL, 0), dest_operand, ll_iseq);
+    // subl     %r10d, -8(%rbp)
+    ll_iseq->append(new Instruction(select_ll_opcode(MINS_SUBB, size), tmp, dest_operand));
 
     add_comment(hl_ins, ll_iseq, first_instruct_idx);
     return;
@@ -467,7 +524,7 @@ Operand LowLevelCodeGen::get_ll_operand(Operand hl_operand, int size, const std:
   case Operand::VREG_MEM:
   {
     opd = operand_hl_ll(hl_operand.memref_to(), 8);
-    opd = mov_to_temp(opd, 8, ll_iseq);
+    opd = emit_mov_to_temp(opd, 8, ll_iseq);
     opd = opd.to_memref();
     break;
   }
@@ -566,7 +623,7 @@ void LowLevelCodeGen::print_uncompleted(Instruction *hl_ins, const std::shared_p
   ll_iseq->append(ins);
 }
 
-void LowLevelCodeGen::emit_mov_hl_ll(int size, Operand src_operand, Operand dest_operand, const std::shared_ptr<InstructionSequence> &ll_iseq)
+Operand LowLevelCodeGen::emit_mov_hl_ll(int size, Operand src_operand, Operand dest_operand, const std::shared_ptr<InstructionSequence> &ll_iseq)
 {
   LowLevelOpcode mov_opcode = select_ll_opcode(MINS_MOVB, size);
 
@@ -576,13 +633,14 @@ void LowLevelCodeGen::emit_mov_hl_ll(int size, Operand src_operand, Operand dest
   if (ll_src_operand.is_memref() && ll_dest_operand.is_memref())
   {
     // move source operand into a temporary register
-    ll_src_operand = mov_to_temp(ll_src_operand, size, ll_iseq);
+    ll_src_operand = emit_mov_to_temp(ll_src_operand, size, ll_iseq);
   }
   Instruction *inst = new Instruction(mov_opcode, ll_src_operand, ll_dest_operand);
   ll_iseq->append(inst);
+  return ll_dest_operand;
 }
 
-Operand LowLevelCodeGen::mov_to_temp(Operand opd, int size, const std::shared_ptr<InstructionSequence> &ll_iseq)
+Operand LowLevelCodeGen::emit_mov_to_temp(Operand opd, int size, const std::shared_ptr<InstructionSequence> &ll_iseq)
 {
   LowLevelOpcode mov_opcode = select_ll_opcode(MINS_MOVB, size);
 
@@ -627,20 +685,6 @@ Operand LowLevelCodeGen::emit_movzb_hl_ll(int size, Operand opd, unsigned vr_idx
 
   return temp_vr;
 }
-
-// Operand LowLevelCodeGen::emit_mov_promotion_hl_ll(LowLevelOpcode ll_opcode, int dst_size, Operand opd, unsigned vr_idx, const std::shared_ptr<InstructionSequence> &ll_iseq)
-// {
-//     int src_size = highlevel_opcode_get_source_operand_size(hl_opcode);
-//     int dst_size = highlevel_opcode_get_dest_operand_size(hl_opcode);
-
-//     Operand src_operand = get_ll_operand(hl_ins->get_operand(1), src_size, ll_iseq);
-//     Operand dest_operand = get_ll_operand(hl_ins->get_operand(0), src_size, ll_iseq);
-
-//     src_operand = mov_to_temp(src_operand, src_size, ll_iseq);
-//     Operand tmp(select_mreg_kind(dst_size), src_operand.get_base_reg());
-//     ll_iseq->append(new Instruction(HL_TO_LL.at(hl_opcode), src_operand, tmp));
-//     emit_mov_hl_ll(dst_size, tmp, dest_operand, ll_iseq);
-// }
 
 Operand LowLevelCodeGen::emit_set_hl_ll(HighLevelOpcode hl_opcode, Operand src_operand, const std::shared_ptr<InstructionSequence> &ll_iseq)
 {

@@ -46,8 +46,8 @@ private:
   Operand operand_hl_ll(Operand hl_opd, int size);
   int get_offset(Operand opd);
   Operand get_lea_offset_operand(Operand hl_opd);
-  void emit_mov_hl_ll(int size, Operand src_operand, Operand dest_operand, const std::shared_ptr<InstructionSequence> &ll_iseq);
-  Operand mov_to_temp(Operand opd, int size, const std::shared_ptr<InstructionSequence> &ll_iseq);
+  Operand emit_mov_hl_ll(int size, Operand src_operand, Operand dest_operand, const std::shared_ptr<InstructionSequence> &ll_iseq);
+  Operand emit_mov_to_temp(Operand opd, int size, const std::shared_ptr<InstructionSequence> &ll_iseq);
   Operand emit_movzb_hl_ll(int size, Operand opd, unsigned vr_idx, const std::shared_ptr<InstructionSequence> &ll_iseq);
   // Operand emit_mov_promotion_hl_ll(LowLevelOpcode ll_opcode, int dst_size, Operand opd, unsigned vr_idx, const std::shared_ptr<InstructionSequence> &ll_iseq);
   Operand emit_set_hl_ll(HighLevelOpcode hl_opcode, Operand src_operand, const std::shared_ptr<InstructionSequence> &ll_iseq);

@@ -87,6 +87,8 @@ void LocalStorageAllocation::visit_function_declaration(Node *n)
   StorageCalculator saved_storage_status = m_storage_calc;
   // save the virtual registers before entering into a new scope
   struct vreg saved_vregs = get_cur_vreg();
+  // comment the visit_children function, because we don't have to allocate space for
+  // function declaration
   // visit_children(n);
   //  recover  the virtual registers after exiting into a new scope
   set_cur_vreg(saved_vregs);
@@ -96,7 +98,6 @@ void LocalStorageAllocation::visit_function_declaration(Node *n)
 
 void LocalStorageAllocation::visit_function_parameter(Node *n)
 {
-  // TODO: implement
   Symbol *cur_sym;
   Node *declarator = n;
   cur_sym = declarator->get_symbol();
