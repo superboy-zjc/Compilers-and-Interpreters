@@ -91,11 +91,9 @@ LowLevelCodeGen::~LowLevelCodeGen()
 std::shared_ptr<InstructionSequence> LowLevelCodeGen::generate(const std::shared_ptr<InstructionSequence> &hl_iseq)
 {
   // TODO: if optimizations are enabled, could do analysis/transformation of high-level code
-
   std::shared_ptr<InstructionSequence> ll_iseq = translate_hl_to_ll(hl_iseq);
 
   // TODO: if optimizations are enabled, could do analysis/transformation of low-level code
-
   return ll_iseq;
 }
 
@@ -250,7 +248,7 @@ void LowLevelCodeGen::translate_instruction(Instruction *hl_ins, const std::shar
     return;
   }
 
-  // TODO: handle other high-level instructions
+  // handle other high-level instructions
   // Note that you can use the highlevel_opcode_get_source_operand_size() and
   // highlevel_opcode_get_dest_operand_size() functions to determine the
   // size (in bytes, 1, 2, 4, or 8) of either the source operands or
@@ -532,7 +530,7 @@ Operand LowLevelCodeGen::get_ll_operand(Operand hl_operand, int size, const std:
     opd = hl_operand;
     break;
   case Operand::LABEL:
-    /* code */
+    opd = hl_operand;
     break;
   default:
     opd = hl_operand;
