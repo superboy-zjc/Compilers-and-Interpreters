@@ -51,7 +51,10 @@
     "concepts": "cpp",
     "cstring": "cpp",
     "numbers": "cpp",
-    "cinttypes": "cpp"
+    "cinttypes": "cpp",
+    "highlevel_lvn_optimization.h": "c",
+    "cfg_transform.h": "c",
+    "cfg.h": "c"
   },
   "cmake.sourceDirectory": "/home/ubuntu/assign01"
 }
