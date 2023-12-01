@@ -5,6 +5,8 @@
 #include "cfg.h"
 #include <set>
 #include "exceptions.h"
+#include "highlevel.h"
+#include "live_vregs.h"
 
 class ControlFlowGraphTransform
 {
@@ -65,6 +67,24 @@ private:
 
   std::map<LVNKey, ValueNumber> m_key_to_vn;
   int m_next_vn = 0;
+  // optimization enable or disable
+  bool CONSTANT_FOLDING_MODE = true;
+  bool CONSTANT_COPY_PROPAGATION_MODE = true;
+
+  void reset_local_state()
+  {
+    m_const_to_vn.clear();
+    m_vn_to_const.clear();
+    m_vreg_to_vn.clear();
+    m_vn_to_vregs.clear();
+    m_key_to_vn.clear();
+    m_next_vn = 0;
+  };
+  bool is_two_constant_computation(const Instruction *ins);
+  ValueNumber lookup_const_by_opd(const Operand &opd);
+  bool is_const_by_opd(const Operand &opd);
+  bool is_const_by_vn(const ValueNumber &vn);
+  long constant_folding_computation(const Instruction *ins);
 
 public:
   LVNOptimizationHighLevel(const std::shared_ptr<ControlFlowGraph> &cfg);
@@ -99,6 +119,19 @@ public:
       return -1;
     }
   };
+  ValueNumber lookup_const_by_vn(const ValueNumber &vn)
+  {
+    auto it = m_vn_to_const.find(vn);
+
+    if (it != m_vn_to_const.end())
+    {
+      return it->second;
+    }
+    else
+    {
+      return -1;
+    }
+  };
   ValueNumber lookup_vn_by_LVNKey(const struct LVNKey &key)
   {
     auto it = m_key_to_vn.find(key);
@@ -112,6 +145,14 @@ public:
       return -1;
     }
   };
+  Vreg lookup_min_vreg_by_vn(const ValueNumber &vn)
+  {
+    if (m_vn_to_vregs[vn].empty())
+    {
+      return -1;
+    }
+    return *m_vn_to_vregs[vn].begin();
+  }
   ValueNumber emit_vn_by_vreg(Vreg vreg)
   {
     ValueNumber vn = emit_value_number();
@@ -131,13 +172,38 @@ public:
 
     return vn;
   };
+  void set_vn_by_LVNKey(struct LVNKey key, ValueNumber vn)
+  {
+    m_key_to_vn[key] = vn;
+  }
+  void add_vreg_by_vn(ValueNumber vn, Vreg vreg)
+  {
+    m_vn_to_vregs[vn].insert(vreg);
+  }
+
   ValueNumber emit_value_number() { return m_next_vn++; };
   void load_value_numbers(const Instruction *ins);
   struct LVNKey get_LVN_key(const Instruction *ins);
   ValueNumber lookup_vn_by_operand(const Operand &opd);
+  Vreg lookup_vreg_by_LVNKey(const struct LVNKey &key);
   ValueNumber emit_vn_by_operand(const Operand &opd);
   void assign_vn_by_operand(Operand opd, ValueNumber vn);
   void assign_vn_by_vreg(Vreg vreg, ValueNumber vn);
+  void assign_vn_by_LVNKey(struct LVNKey key, ValueNumber vn);
+  HighLevelOpcode get_mov_opcode(int opcode);
+};
+
+class DeadStoreElimination : public ControlFlowGraphTransform
+{
+private:
+  LiveVregs m_live_vregs;
+
+public:
+  DeadStoreElimination(const std::shared_ptr<ControlFlowGraph> &cfg);
+  ~DeadStoreElimination();
+
+  virtual std::shared_ptr<InstructionSequence>
+  transform_basic_block(const InstructionSequence *orig_bb);
 };
 
 #endif // CFG_TRANSFORM_H

@@ -35,6 +35,7 @@
 #include "local_storage_allocation.h"
 #include "lowlevel_codegen.h"
 #include "context.h"
+#include "cfg_transform.h"
 
 Context::Context()
     : m_ast(nullptr)
@@ -184,13 +185,36 @@ void Context::highlevel_codegen(ModuleCollector *module_collector, bool optimize
       std::string fn_name = child->get_kid(1)->get_str();
       std::shared_ptr<InstructionSequence> hl_iseq = hl_codegen.get_hl_iseq();
 
+      // if optimized
+      std::shared_ptr<InstructionSequence> cur_hl_iseq(hl_iseq);
+      if (optimize)
+      {
+        // High-level optimizations
+        // Create a control-flow graph representation of the high-level code
+        HighLevelControlFlowGraphBuilder hl_cfg_builder(cur_hl_iseq);
+        std::shared_ptr<ControlFlowGraph> cfg = hl_cfg_builder.build();
+
+        // Do local optimizations
+        for (int opt_time = 0; opt_time < 5; opt_time++)
+        {
+          LVNOptimizationHighLevel hl_opts(cfg);
+          cfg = hl_opts.transform_cfg();
+        }
+        // dead store elimination optimization
+        DeadStoreElimination dse_opts(cfg);
+        cfg = dse_opts.transform_cfg();
+
+        // Convert thetransformed high-level CFG back to an InstructionSequence
+        cur_hl_iseq = cfg->create_instruction_sequence();
+      }
+
       // store a pointer to the function definition AST in the
       // high-level InstructionSequence: this is useful in case information
       // about the function definition is needed by the low-level
       // code generator
-      hl_iseq->set_funcdef_ast(child);
+      cur_hl_iseq->set_funcdef_ast(child);
 
-      module_collector->collect_function(fn_name, hl_iseq);
+      module_collector->collect_function(fn_name, cur_hl_iseq);
 
       // make sure local label numbers are not reused between functions
       next_label_num = hl_codegen.get_next_label_num();

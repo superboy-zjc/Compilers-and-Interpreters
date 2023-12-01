@@ -98,7 +98,8 @@ std::shared_ptr<InstructionSequence> LowLevelCodeGen::generate(const std::shared
   // cur_hl_iseq is the "current" version of the high-level IR,
   // which could be a transformed version if we are doing optimizations
   std::shared_ptr<InstructionSequence> cur_hl_iseq(hl_iseq);
-
+  // by default, optimization
+  m_optimize = true;
   if (m_optimize)
   {
     // High-level optiimizations
@@ -108,8 +109,16 @@ std::shared_ptr<InstructionSequence> LowLevelCodeGen::generate(const std::shared
     std::shared_ptr<ControlFlowGraph> cfg = hl_cfg_builder.build();
 
     // Do local optimizations
-    LVNOptimizationHighLevel hl_opts(cfg);
-    cfg = hl_opts.transform_cfg();
+    // (Notice!!! You should sync with the code in the context.cpp!!!)
+    // Do LVN optimization muliple times
+    for (int opt_time = 0; opt_time < 5; opt_time++)
+    {
+      LVNOptimizationHighLevel hl_opts(cfg);
+      cfg = hl_opts.transform_cfg();
+    }
+    // dead store elimination optimization
+    DeadStoreElimination dse_opts(cfg);
+    cfg = dse_opts.transform_cfg();
 
     // Convert thetransformed high-level CFG back to an InstructionSequence
     cur_hl_iseq = cfg->create_instruction_sequence();

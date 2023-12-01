@@ -104,6 +104,7 @@ int main(int argc, char **argv)
     }
     else if (arg == "-h")
     {
+      // optimize = true;
       mode = Mode::HIGHLEVEL_CODEGEN;
     }
     else if (arg == "-o")
