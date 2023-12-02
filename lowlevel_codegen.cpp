@@ -728,7 +728,10 @@ Operand LowLevelCodeGen::emit_movzb_hl_ll(int size, Operand opd, unsigned vr_idx
 Operand LowLevelCodeGen::emit_set_hl_ll(HighLevelOpcode hl_opcode, Operand src_operand, const std::shared_ptr<InstructionSequence> &ll_iseq)
 {
   // convert a operand to a boolean length of operand
-  Operand bool_opd = Operand(select_mreg_kind(1), src_operand.get_base_reg());
+
+  // assign05
+  // Operand bool_opd = Operand(select_mreg_kind(1), src_operand.get_base_reg());
+  Operand bool_opd = get_next_tmp_register(1);
   ll_iseq->append(new Instruction(HL_TO_LL.at(hl_opcode), bool_opd));
   return bool_opd;
 }
