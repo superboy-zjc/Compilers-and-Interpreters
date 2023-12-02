@@ -315,12 +315,12 @@ void LowLevelCodeGen::translate_instruction(Instruction *hl_ins, const std::shar
     Operand src1_operand = get_ll_operand(hl_ins->get_operand(2), size, ll_iseq);
     Operand src2_operand = get_ll_operand(hl_ins->get_operand(1), size, ll_iseq);
     Operand dest_operand = get_ll_operand(hl_ins->get_operand(0), size, ll_iseq);
-
-    if (src1_operand.is_memref() && src2_operand.is_memref())
-    {
-      // move source operand into a temporary register
-      src2_operand = emit_mov_to_temp(src2_operand, size, ll_iseq);
-    }
+    // assign05
+    //  if (src1_operand.is_memref() && src2_operand.is_memref())
+    //  {
+    //  move source operand into a temporary register
+    src2_operand = emit_mov_to_temp(src2_operand, size, ll_iseq);
+    // }
 
     ll_iseq->append(new Instruction(add_opcode, src1_operand, src2_operand));
 
