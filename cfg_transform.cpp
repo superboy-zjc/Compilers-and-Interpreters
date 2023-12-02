@@ -20,7 +20,12 @@ std::shared_ptr<ControlFlowGraph> ControlFlowGraphTransform::get_orig_cfg()
 
 bool match_opcode(int opcode, HighLevelOpcode hlcode)
 {
-  if (opcode >= hlcode && opcode <= hlcode + 3)
+  if (hlcode == HINS_sconv_bw || hlcode == HINS_uconv_bw)
+  {
+    if (opcode >= hlcode && opcode <= hlcode + 5)
+      return true;
+  }
+  else if (opcode >= hlcode && opcode <= hlcode + 3)
   {
     return true;
   }
@@ -92,14 +97,19 @@ LVNOptimizationHighLevel::transform_basic_block(const InstructionSequence *orig_
 
   for (auto i = orig_bb->cbegin(); i != orig_bb->cend(); ++i)
   {
-    // printf("有开始优化哦！\n");
     Instruction *orig_ins = *i;
     int opcode = orig_ins->get_opcode();
     int opd_nums = orig_ins->get_num_operands();
+
     // if not a def operation, we don't have to optimize it.
-    if ((opd_nums == 2 || opd_nums == 3) && HighLevel::is_def(orig_ins))
+    if ((opd_nums == 2 || opd_nums == 3))
     {
-      // load value number for each operand, if mov, do the translation process
+      // if (orig_ins->get_operand(1).get_kind() == Operand::VREG && orig_ins->get_operand(1).get_base_reg() == 16 && orig_ins->get_operand(0).get_kind() == Operand::VREG_MEM)
+      if (orig_ins->get_operand(1).get_kind() == Operand::IMM_IVAL && orig_ins->get_operand(0).get_kind() == Operand::VREG && orig_ins->get_operand(0).get_base_reg() == 1)
+      {
+        // printf("debug here\n");
+      }
+      // load value number for each operand
       load_value_numbers(orig_ins);
       // if spill
       if (match_opcode(opcode, HighLevelOpcode::HINS_spill_b))
@@ -113,79 +123,115 @@ LVNOptimizationHighLevel::transform_basic_block(const InstructionSequence *orig_
         Operand dst = orig_ins->get_operand(0);
         Operand src = orig_ins->get_operand(1);
         assign_vn_by_operand(dst, lookup_vn_by_operand(src));
-        // constant copy propagation
-        if (is_const_by_opd(src) && CONSTANT_COPY_PROPAGATION_MODE)
-        {
-          Instruction *optimized_ins = new Instruction(opcode, dst, Operand(Operand::IMM_IVAL, lookup_const_by_opd(src)));
-          result_iseq->append(optimized_ins);
-        }
-        else
-        {
-          result_iseq->append(orig_ins->duplicate());
-        }
-        continue;
       }
-      // constant folding
-      else if (is_two_constant_computation(orig_ins) && CONSTANT_FOLDING_MODE)
-      {
-        // compute constants in runtime
-        long res = constant_folding_computation(orig_ins);
-        // constant folding
-        Instruction *optimized_ins = new Instruction(get_mov_opcode(orig_ins->get_opcode()), orig_ins->get_operand(0), Operand(Operand::IMM_IVAL, res));
-        result_iseq->append(optimized_ins);
-      }
-      // constant propagation
-      // else if (CONSTANT_COPY_PROPAGATION_MODE)
-      // {
-      //   // not to propagation dest operand
-      //   Instruction *optimized_ins;
-      //   std::vector<Operand> opd_list;
-      //   for (int i = 1; i < opd_nums; i++)
-      //   {
-      //     Operand cur_opd = orig_ins->get_operand(i);
-      //     opd_list.push_back(cur_opd);
-      //     // for constant
-      //     if (is_const_by_opd(cur_opd))
-      //     {
-      //       opd_list[i - 1] = Operand(Operand::IMM_IVAL, lookup_const_by_opd(orig_ins->get_operand(i)));
-      //     }
-      //     // for virtual register
-      //     else if (cur_opd.get_kind() == Operand::VREG)
-      //     {
-      //       Vreg best_vreg = lookup_min_vreg_by_vn(lookup_vn_by_operand(cur_opd));
-      //       if (best_vreg == -1)
-      //       {
-      //         RuntimeError::raise("err!\n");
-      //       }
-      //       // update the current operand
-      //       opd_list[i - 1] = Operand(Operand::VREG, best_vreg);
-      //     }
-      //   }
-      //   if (opd_nums == 2)
-      //     optimized_ins = new Instruction(opcode, orig_ins->get_operand(0), opd_list[0]);
-      //   else
-      //     optimized_ins = new Instruction(opcode, orig_ins->get_operand(0), opd_list[0], opd_list[1]);
-
-      //   result_iseq->append(optimized_ins);
-      // }
-      else
+      /*
+        Eliminate redundancy computation, and maintain LVN list
+      */
+      if (!match_opcode(opcode, HighLevelOpcode::HINS_mov_b))
       {
         struct LVNKey key = get_LVN_key(orig_ins);
         // value number has been recorded, but the destructive assignment clear the registers
         Vreg vreg = lookup_vreg_by_LVNKey(key);
-        if (vreg == -1)
+        // LVNKey matched to certain value number
+        if (vreg != -1)
+        {
+          //  eliminate the computation
+          Instruction *optimized_ins = new Instruction(get_mov_opcode(orig_ins->get_opcode()), orig_ins->get_operand(0), Operand(Operand::VREG, vreg));
+          result_iseq->append(optimized_ins);
+          continue;
+        }
+        // if not match, add a mapping record
+        // bypass memory reference, we are not sure the exact value in the memory
+        if (HighLevel::is_def(orig_ins))
         {
           ValueNumber dst_vn = lookup_vn_by_operand(orig_ins->get_operand(0));
           set_vn_by_LVNKey(key, dst_vn);
-          // add_vreg_by_vn
-          result_iseq->append(orig_ins->duplicate());
+        }
+
+        // printf("/* key: %d %d %d */\n", key.opcode, key.left_vn, key.right_vn);
+      }
+    }
+    if (opd_nums == 2 || opd_nums == 3)
+    {
+      // constant folding
+      if (CONSTANT_FOLDING_MODE)
+      {
+        if (is_two_constant_computation(orig_ins))
+        {
+          // compute constants in runtime
+          long res = constant_folding_computation(orig_ins);
+          // constant folding
+          Instruction *optimized_ins = new Instruction(get_mov_opcode(orig_ins->get_opcode()), orig_ins->get_operand(0), Operand(Operand::IMM_IVAL, res));
+          result_iseq->append(optimized_ins);
           continue;
         }
-        // printf("/* key: %d %d %d */\n", key.opcode, key.left_vn, key.right_vn);
-        //  eliminate the computation
-        Instruction *optimized_ins = new Instruction(get_mov_opcode(orig_ins->get_opcode()), orig_ins->get_operand(0), Operand(Operand::VREG, vreg));
-        result_iseq->append(optimized_ins);
+        else if (match_opcode(opcode, HINS_sconv_bw) && is_const_by_opd(orig_ins->get_operand(1)))
+        {
+          Operand dst = orig_ins->get_operand(0);
+          Operand src = orig_ins->get_operand(1);
+          assign_vn_by_operand(dst, lookup_vn_by_operand(src));
+        }
+        else if (match_opcode(opcode, HINS_neg_b))
+        {
+          // compute constants in runtime
+          long res = constant_folding_computation(orig_ins);
+          // constant folding
+          Instruction *optimized_ins = new Instruction(get_mov_opcode(orig_ins->get_opcode()), orig_ins->get_operand(0), Operand(Operand::IMM_IVAL, res));
+          result_iseq->append(optimized_ins);
+          continue;
+        }
       }
+      // constant propagation
+      if (CONSTANT_COPY_PROPAGATION_MODE)
+      {
+        Instruction *optimized_ins;
+        std::vector<Operand> opd_list;
+        // not to propagation dest operand
+        for (int i = 0; i < opd_nums; i++)
+        {
+          Operand cur_opd = orig_ins->get_operand(i);
+          opd_list.push_back(cur_opd);
+          // for constant
+          if (i >= 1 && is_const_by_opd(cur_opd))
+          {
+            opd_list[i] = Operand(Operand::IMM_IVAL, lookup_const_by_opd(cur_opd));
+          }
+          // for virtual register or memory reference
+          else if (i >= 1 && (cur_opd.get_kind() == Operand::VREG || cur_opd.get_kind() == Operand::VREG_MEM))
+          {
+            // search value number based on virtual register
+            // if (cur_opd.get_kind() == Operand::VREG_MEM)
+            // {
+            //   printf("debug\n");
+            // }
+            Vreg best_vreg = lookup_min_vreg_by_vn(lookup_vn_by_vreg(cur_opd.get_base_reg()));
+            if (best_vreg == -1)
+            {
+              RuntimeError::raise("err!\n");
+            }
+            // update the current operand
+            if (cur_opd.get_kind() == Operand::VREG)
+              opd_list[i] = Operand(Operand::VREG, best_vreg);
+            else
+              opd_list[i] = Operand(Operand::VREG_MEM, best_vreg);
+          }
+        }
+        if (opd_nums == 2)
+        {
+          optimized_ins = new Instruction(opcode, opd_list[0], opd_list[1]);
+        }
+        else if (opd_nums == 3)
+        {
+          optimized_ins = new Instruction(opcode, opd_list[0], opd_list[1], opd_list[2]);
+        }
+        else
+        {
+          RuntimeError::raise("err!\n");
+        }
+        result_iseq->append(optimized_ins);
+        continue;
+      }
+      result_iseq->append(orig_ins->duplicate());
     }
     else
     {
@@ -233,6 +279,10 @@ ValueNumber LVNOptimizationHighLevel::lookup_vn_by_operand(const Operand &opd)
   {
     return -1;
   }
+  else if (opd_kind == Operand::LABEL)
+  {
+    return -1;
+  }
   else
   {
     RuntimeError::raise("Unprocessed Operand!");
@@ -257,6 +307,10 @@ ValueNumber LVNOptimizationHighLevel::emit_vn_by_operand(const Operand &opd)
   {
     return emit_value_number();
   }
+  else if (opd_kind == Operand::LABEL)
+  {
+    return emit_value_number();
+  }
   else
   {
     RuntimeError::raise("Unprocessed Operand!");
@@ -264,19 +318,22 @@ ValueNumber LVNOptimizationHighLevel::emit_vn_by_operand(const Operand &opd)
 }
 void LVNOptimizationHighLevel::assign_vn_by_vreg(Vreg vreg, ValueNumber vn)
 {
-
+  // insert order is important!!!!!
   ValueNumber old_vn = lookup_vn_by_vreg(vreg);
-  // consider destructive assignment
-  if (old_vn != -1)
+  // if destructive assignment
+  if (old_vn != -1 && old_vn != vn)
   {
-    m_vn_to_vregs[old_vn].erase(vreg);
+    m_vn_to_vregs[old_vn].remove(vreg);
     // still need a step, when a LVNkey is matched to a value number which
     //  no longer virtual registers have, then set the value number of destination
     // operand to the value of that key
   }
-
   m_vreg_to_vn[vreg] = vn;
-  m_vn_to_vregs[vn].insert(vreg);
+  auto it = std::find(m_vn_to_vregs[vn].begin(), m_vn_to_vregs[vn].end(), vreg);
+  if (it == m_vn_to_vregs[vn].end())
+  {
+    m_vn_to_vregs[vn].push_back(vreg);
+  }
 }
 
 void LVNOptimizationHighLevel::assign_vn_by_operand(Operand opd, ValueNumber vn)
@@ -287,6 +344,12 @@ void LVNOptimizationHighLevel::assign_vn_by_operand(Operand opd, ValueNumber vn)
     // Here, consider destructive assignment
     assign_vn_by_vreg(opd.get_base_reg(), vn);
   }
+  else if (opd_kind == Operand::VREG_MEM)
+  {
+    // for move operation applied on a memory reference, just ignore it
+    // cause we can not keep track of the value in the memory
+    ;
+  }
   else
   {
     RuntimeError::raise("Unprocessed Operand!");
@@ -296,25 +359,7 @@ void LVNOptimizationHighLevel::assign_vn_by_operand(Operand opd, ValueNumber vn)
 void LVNOptimizationHighLevel::load_value_numbers(const Instruction *ins)
 {
   int opd_num = ins->get_num_operands();
-  // if (opd_num == 2)
-  // {
-  //   Operand src = ins->get_operand(1);
-  //   ValueNumber src_vn = lookup_vn_by_operand(src);
-  //   // there no value number related to the operand
-  //   // assign a value number for the operand
-  //   if (src_vn == -1)
-  //   {
-  //     src_vn = emit_vn_by_operand(src);
-  //   }
-  //   else
-  //   {
-  //     if (lookup_vn_by_operand(dst) == -1)
-  //     {
-  //       emit_vn_by_operand(dst);
-  //     }
-  //   }
-  // }
-  for (int i = 0; i < opd_num; i++)
+  for (int i = 1; i < opd_num; i++)
   {
     Operand opd = ins->get_operand(i);
     ValueNumber vn = lookup_vn_by_operand(opd);
@@ -323,13 +368,12 @@ void LVNOptimizationHighLevel::load_value_numbers(const Instruction *ins)
       vn = emit_vn_by_operand(opd);
     }
   }
-  // }
-  // else if (opd_num == 3)
-  // {
-  //   // ValueNumber vn1 = get_value_number(ins->get_operand(1));
-  //   // ValueNumber vn2 = get_value_number(ins->get_operand(2));
-  //   // ValueNumber vn3 = get_value_number(ins->get_operand(0));
-  // }
+  Operand opd = ins->get_operand(0);
+  ValueNumber vn = lookup_vn_by_operand(opd);
+  if (vn == -1)
+  {
+    vn = emit_vn_by_operand(opd);
+  }
 }
 
 struct LVNKey LVNOptimizationHighLevel::get_LVN_key(const Instruction *ins)
@@ -403,6 +447,10 @@ bool LVNOptimizationHighLevel::is_const_by_opd(const Operand &opd)
   {
     return false;
   }
+  else if (opd_kind == Operand::LABEL)
+  {
+    return false;
+  }
   else
   {
     RuntimeError::raise("Unprocessed Operand!");
@@ -421,7 +469,7 @@ bool LVNOptimizationHighLevel::is_const_by_vn(const ValueNumber &vn)
     return false;
   }
 }
-ValueNumber LVNOptimizationHighLevel::lookup_const_by_opd(const Operand &opd)
+ConstantValue LVNOptimizationHighLevel::lookup_const_by_opd(const Operand &opd)
 {
   Operand::Kind opd_kind = opd.get_kind();
   if (opd_kind == Operand::VREG)
@@ -448,64 +496,80 @@ ValueNumber LVNOptimizationHighLevel::lookup_const_by_opd(const Operand &opd)
 
 long LVNOptimizationHighLevel::constant_folding_computation(const Instruction *ins)
 {
-  long val1 = lookup_const_by_opd(ins->get_operand(1));
-  long val2 = lookup_const_by_opd(ins->get_operand(2));
-  int opcode = ins->get_opcode();
-  if (match_opcode(opcode, HINS_add_b))
+  if (ins->get_num_operands() == 3)
   {
-    return val1 + val2;
+    long val1 = lookup_const_by_opd(ins->get_operand(1));
+    long val2 = lookup_const_by_opd(ins->get_operand(2));
+    int opcode = ins->get_opcode();
+    if (match_opcode(opcode, HINS_add_b))
+    {
+      return val1 + val2;
+    }
+    else if (match_opcode(opcode, HINS_sub_b))
+    {
+      return val1 - val2;
+    }
+    else if (match_opcode(opcode, HINS_div_b))
+    {
+      return val1 / val2;
+    }
+    else if (match_opcode(opcode, HINS_mul_b))
+    {
+      return val1 * val2;
+    }
+    else if (match_opcode(opcode, HINS_and_b))
+    {
+      return val1 && val2;
+    }
+    else if (match_opcode(opcode, HINS_mod_b))
+    {
+      return val1 % val2;
+    }
+    else if (match_opcode(opcode, HINS_or_b))
+    {
+      return val1 || val2;
+    }
+    else if (match_opcode(opcode, HINS_cmpeq_b))
+    {
+      return val1 == val2;
+    }
+    else if (match_opcode(opcode, HINS_cmpgt_b))
+    {
+      return val1 > val2;
+    }
+    else if (match_opcode(opcode, HINS_cmpgte_b))
+    {
+      return val1 >= val2;
+    }
+    else if (match_opcode(opcode, HINS_cmplt_b))
+    {
+      return val1 < val2;
+    }
+    else if (match_opcode(opcode, HINS_cmplte_b))
+    {
+      return val1 <= val2;
+    }
+    else if (match_opcode(opcode, HINS_cmpneq_b))
+    {
+      return val1 != val2;
+    }
+    else
+    {
+      RuntimeError::raise("Ignored computation type: %d!\n", opcode);
+    }
   }
-  else if (match_opcode(opcode, HINS_sub_b))
+  else if (ins->get_num_operands() == 2)
   {
-    return val1 - val2;
-  }
-  else if (match_opcode(opcode, HINS_div_b))
-  {
-    return val1 / val2;
-  }
-  else if (match_opcode(opcode, HINS_mul_b))
-  {
-    return val1 * val2;
-  }
-  else if (match_opcode(opcode, HINS_and_b))
-  {
-    return val1 && val2;
-  }
-  else if (match_opcode(opcode, HINS_mod_b))
-  {
-    return val1 % val2;
-  }
-  else if (match_opcode(opcode, HINS_or_b))
-  {
-    return val1 || val2;
-  }
-  else if (match_opcode(opcode, HINS_cmpeq_b))
-  {
-    return val1 == val2;
-  }
-  else if (match_opcode(opcode, HINS_cmpgt_b))
-  {
-    return val1 > val2;
-  }
-  else if (match_opcode(opcode, HINS_cmpgte_b))
-  {
-    return val1 >= val2;
-  }
-  else if (match_opcode(opcode, HINS_cmplt_b))
-  {
-    return val1 < val2;
-  }
-  else if (match_opcode(opcode, HINS_cmplte_b))
-  {
-    return val1 <= val2;
-  }
-  else if (match_opcode(opcode, HINS_cmpneq_b))
-  {
-    return val1 != val2;
-  }
-  else
-  {
-    RuntimeError::raise("Ignored computation type: %d!\n", opcode);
+    long val1 = lookup_const_by_opd(ins->get_operand(1));
+    int opcode = ins->get_opcode();
+    if (match_opcode(opcode, HINS_neg_b))
+    {
+      return val1 * -1;
+    }
+    else
+    {
+      RuntimeError::raise("Ignored computation type: %d!\n", opcode);
+    }
   }
 }
 
@@ -545,10 +609,22 @@ DeadStoreElimination::transform_basic_block(const InstructionSequence *orig_bb)
           m_live_vregs.get_fact_after_instruction(orig_bb_as_basic_block, orig_ins);
 
       // after the vr0-vr9
-      if (!live_after.test(dest.get_base_reg()) && dest.get_base_reg() >= 9)
+      if (!live_after.test(dest.get_base_reg()) && dest.get_base_reg() > 9)
         // destination register is dead immediately after this instruction,
         // so it can be eliminated
         preserve_instruction = false;
+
+      // tease duplicated mov out
+      if (match_opcode(orig_ins->get_opcode(), HINS_mov_b))
+      {
+        Operand src = orig_ins->get_operand(1);
+        if (dest.get_kind() == Operand::VREG && src.get_kind() == Operand::VREG)
+        {
+          if (dest.get_base_reg() == src.get_base_reg())
+            // preserve_instruction = false;
+            ;
+        }
+      }
     }
 
     if (preserve_instruction)

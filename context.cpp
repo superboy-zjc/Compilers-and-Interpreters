@@ -199,10 +199,11 @@ void Context::highlevel_codegen(ModuleCollector *module_collector, bool optimize
         {
           LVNOptimizationHighLevel hl_opts(cfg);
           cfg = hl_opts.transform_cfg();
+
+          // dead store elimination optimization
+          DeadStoreElimination dse_opts(cfg);
+          cfg = dse_opts.transform_cfg();
         }
-        // dead store elimination optimization
-        DeadStoreElimination dse_opts(cfg);
-        cfg = dse_opts.transform_cfg();
 
         // Convert thetransformed high-level CFG back to an InstructionSequence
         cur_hl_iseq = cfg->create_instruction_sequence();

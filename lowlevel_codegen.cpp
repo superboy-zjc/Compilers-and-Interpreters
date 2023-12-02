@@ -99,7 +99,7 @@ std::shared_ptr<InstructionSequence> LowLevelCodeGen::generate(const std::shared
   // which could be a transformed version if we are doing optimizations
   std::shared_ptr<InstructionSequence> cur_hl_iseq(hl_iseq);
   // by default, optimization
-  m_optimize = true;
+  // m_optimize = true;
   if (m_optimize)
   {
     // High-level optiimizations

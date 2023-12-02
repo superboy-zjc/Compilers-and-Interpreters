@@ -7,6 +7,7 @@
 #include "exceptions.h"
 #include "highlevel.h"
 #include "live_vregs.h"
+#include <list>
 
 class ControlFlowGraphTransform
 {
@@ -35,7 +36,7 @@ public:
 
 // Local Value Numbering
 typedef int ValueNumber;
-typedef int ConstantValue;
+typedef long ConstantValue;
 typedef int Vreg;
 
 struct LVNKey
@@ -63,7 +64,8 @@ private:
   std::map<ConstantValue, ValueNumber> m_const_to_vn;
   std::map<ValueNumber, ConstantValue> m_vn_to_const;
   std::map<Vreg, ValueNumber> m_vreg_to_vn;
-  std::map<ValueNumber, std::set<Vreg>> m_vn_to_vregs;
+  // std::map<ValueNumber, std::set<Vreg>> m_vn_to_vregs;
+  std::map<ValueNumber, std::list<Vreg>> m_vn_to_vregs;
 
   std::map<LVNKey, ValueNumber> m_key_to_vn;
   int m_next_vn = 0;
@@ -81,7 +83,7 @@ private:
     m_next_vn = 0;
   };
   bool is_two_constant_computation(const Instruction *ins);
-  ValueNumber lookup_const_by_opd(const Operand &opd);
+  ConstantValue lookup_const_by_opd(const Operand &opd);
   bool is_const_by_opd(const Operand &opd);
   bool is_const_by_vn(const ValueNumber &vn);
   long constant_folding_computation(const Instruction *ins);
@@ -119,7 +121,7 @@ public:
       return -1;
     }
   };
-  ValueNumber lookup_const_by_vn(const ValueNumber &vn)
+  ConstantValue lookup_const_by_vn(const ValueNumber &vn)
   {
     auto it = m_vn_to_const.find(vn);
 
@@ -151,17 +153,29 @@ public:
     {
       return -1;
     }
-    return *m_vn_to_vregs[vn].begin();
+    // return *m_vn_to_vregs[vn].begin();
+    return m_vn_to_vregs[vn].front();
   }
   ValueNumber emit_vn_by_vreg(Vreg vreg)
   {
+    // if (vreg == 0)
+    // {
+    //   printf("debug!\n");
+    // }
     ValueNumber vn = emit_value_number();
     m_vreg_to_vn[vreg] = vn;
-    auto res = m_vn_to_vregs[vn].insert(vreg);
-    if (!res.second)
+    // auto res = m_vn_to_vregs[vn].insert(vreg);
+    // if (!res.second)
+    // {
+    //   RuntimeError::raise("Virtual register already exist!");
+    // }
+    auto it = std::find(m_vn_to_vregs[vn].begin(), m_vn_to_vregs[vn].end(), vreg);
+    if (it != m_vn_to_vregs[vn].end())
     {
       RuntimeError::raise("Virtual register already exist!");
     }
+    m_vn_to_vregs[vn].push_back(vreg);
+
     return vn;
   };
   ValueNumber emit_vn_by_const(ConstantValue const_v)
@@ -178,7 +192,13 @@ public:
   }
   void add_vreg_by_vn(ValueNumber vn, Vreg vreg)
   {
-    m_vn_to_vregs[vn].insert(vreg);
+    // m_vn_to_vregs[vn].insert(vreg);
+    auto it = std::find(m_vn_to_vregs[vn].begin(), m_vn_to_vregs[vn].end(), vreg);
+    if (it != m_vn_to_vregs[vn].end())
+    {
+      RuntimeError::raise("Virtual register already exist!");
+    }
+    m_vn_to_vregs[vn].push_back(vreg);
   }
 
   ValueNumber emit_value_number() { return m_next_vn++; };
