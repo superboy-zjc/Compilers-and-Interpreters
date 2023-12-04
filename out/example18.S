@@ -5,28 +5,31 @@
 main:
 	pushq    %rbp                /* enter    $0 */
 	movq     %rsp, %rbp
-	subq     $80, %rsp
-	movl     $10, -72(%rbp)      /* mov_l    vr10, $10 */
+	subq     $16, %rsp
+	pushq    %rbx
+	subq     $8, %rsp
+	movl     $10, %ebx           /* mov_l    vr10<%rbx>, $10 */
 	jmp      .L1                 /* jmp      .L1 */
 .L0:
-	movl     -72(%rbp), %edi     /* mov_l    vr1, vr10 */
+	movl     %ebx, %edi          /* mov_l    vr1, vr10<%rbx> */
 	call     print_i32           /* call     print_i32 */
 	call     print_nl            /* call     print_nl */
-	movl     -72(%rbp), %r10d    /* sub_l    vr15, vr10, $1 */
+	movl     %ebx, %r10d         /* sub_l    vr15<%r9>, vr10<%rbx>, $1 */
 	subl     $1, %r10d
-	movl     %r10d, -32(%rbp)
-	movl     -32(%rbp), %r11d    /* mov_l    vr10, vr15 */
-	movl     %r11d, -72(%rbp)
+	movl     %r10d, %r9d
+	movl     %r9d, %ebx          /* mov_l    vr10<%rbx>, vr15<%r9> */
 .L1:
-	cmpl     $0, -72(%rbp)       /* cmpgt_l  vr17, vr10, $0 */
-	setg     %bpl
-	movzbl   %bpl, %r11d
-	movl     %r11d, -16(%rbp)
-	cmpl     $0, -16(%rbp)       /* cjmp_t   vr17, .L0 */
+	cmpl     $0, %ebx            /* cmpgt_l  vr17<%r9>, vr10<%rbx>, $0 */
+	setg     %r11b
+	movzbl   %r11b, %r11d
+	movl     %r11d, %r9d
+	cmpl     $0, %r9d            /* cjmp_t   vr17<%r9>, .L0 */
 	jne      .L0
 	movl     $0, %eax            /* mov_l    vr0, $0 */
 	jmp      .Lmain_return       /* jmp      .Lmain_return */
 .Lmain_return:
-	addq     $80, %rsp           /* leave    $0 */
+	addq     $8, %rsp            /* leave    $0 */
+	popq     %rbx
+	addq     $16, %rsp
 	popq     %rbp
 	ret                          /* ret       */

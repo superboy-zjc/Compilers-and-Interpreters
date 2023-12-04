@@ -7,14 +7,11 @@ _str0: .string "Hello, world\n"
 main:
 	pushq    %rbp                /* enter    $0 */
 	movq     %rsp, %rbp
-	subq     $32, %rsp
-	movq     $_str0, -24(%rbp)   /* mov_q    vr10, $_str0 */
-	movq     -24(%rbp), %rdi     /* mov_q    vr1, vr10 */
+	movq     $_str0, %r9         /* mov_q    vr10<%r9>, $_str0 */
+	movq     %r9, %rdi           /* mov_q    vr1, vr10<%r9> */
 	call     print_str           /* call     print_str */
-	movl     $0, -8(%rbp)        /* mov_l    vr12, $0 */
-	movl     -8(%rbp), %eax      /* mov_l    vr0, vr12 */
+	movl     $0, %eax            /* mov_l    vr0, $0 */
 	jmp      .Lmain_return       /* jmp      .Lmain_return */
 .Lmain_return:
-	addq     $32, %rsp           /* leave    $0 */
-	popq     %rbp
+	popq     %rbp                /* leave    $0 */
 	ret                          /* ret       */

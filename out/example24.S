@@ -7,23 +7,10 @@
 main:
 	pushq    %rbp                /* enter    $0 */
 	movq     %rsp, %rbp
-	subq     $48, %rsp
-	movl     $44, -24(%rbp)      /* mov_l    vr13, $44 */
-	movl     -24(%rbp), %r10d    /* mov_l    vr10, vr13 */
-	movl     %r10d, -48(%rbp)
-	movl     $7, -16(%rbp)       /* mov_l    vr14, $7 */
-	movl     -16(%rbp), %r11d    /* mov_l    vr11, vr14 */
-	movl     %r11d, -40(%rbp)
-	movl     -48(%rbp), %eax     /* mod_l    vr15, vr10, vr11 */
-	cdq      
-	movl     -40(%rbp), %r10d
-	idivl    %r10d
-	movl     %edx, -8(%rbp)
-	movl     -8(%rbp), %r11d     /* mov_l    vr12, vr15 */
-	movl     %r11d, -32(%rbp)
-	movl     -32(%rbp), %eax     /* mov_l    vr0, vr12 */
+	subq     $32, %rsp
+	movl     $2, %eax            /* mov_l    vr0, $2 */
 	jmp      .Lmain_return       /* jmp      .Lmain_return */
 .Lmain_return:
-	addq     $48, %rsp           /* leave    $0 */
+	addq     $32, %rsp           /* leave    $0 */
 	popq     %rbp
 	ret                          /* ret       */

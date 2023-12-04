@@ -6,21 +6,20 @@
 main:
 	pushq    %rbp                /* enter    $4 */
 	movq     %rsp, %rbp
-	subq     $48, %rsp
-	leaq     -8(%rbp), %r10      /* localaddr vr11, $0 */
-	movq     %r10, -32(%rbp)
-	movq     -32(%rbp), %r10     /* mov_q    vr10, vr11 */
-	movq     %r10, -40(%rbp)
-	movl     $42, -24(%rbp)      /* mov_l    vr12, $42 */
-	movq     -40(%rbp), %r11     /* mov_l    (vr10), vr12 */
-	movl     -24(%rbp), %r10d
-	movl     %r10d, (%r11)
-	leaq     -8(%rbp), %r10      /* localaddr vr13, $0 */
-	movq     %r10, -16(%rbp)
-	movq     -16(%rbp), %r11     /* mov_l    vr0, (vr13) */
+	subq     $16, %rsp
+	pushq    %rbx
+	subq     $8, %rsp
+	leaq     -8(%rbp), %r10      /* localaddr vr11<%r9>, $0 */
+	movq     %r10, %r9
+	movq     %r9, %rbx           /* mov_q    vr10<%rbx>, vr11<%r9> */
+	movq     %rbx, %r10          /* mov_l    (vr10<%rbx>), $42 */
+	movl     $42, (%r10)
+	movq     %r9, %r11           /* mov_l    vr0, (vr11<%r9>) */
 	movl     (%r11), %eax
 	jmp      .Lmain_return       /* jmp      .Lmain_return */
 .Lmain_return:
-	addq     $48, %rsp           /* leave    $4 */
+	addq     $8, %rsp            /* leave    $4 */
+	popq     %rbx
+	addq     $16, %rsp
 	popq     %rbp
 	ret                          /* ret       */

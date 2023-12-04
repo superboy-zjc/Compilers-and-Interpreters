@@ -6,11 +6,10 @@ ctoi:
 	pushq    %rbp                /* enter    $0 */
 	movq     %rsp, %rbp
 	subq     $16, %rsp
-	movb     %dil, -16(%rbp)     /* mov_b    vr10, vr1 */
-	movb     -16(%rbp), %r10b    /* sconv_bl vr11, vr10 */
+	movb     %dil, %r10b         /* sconv_bl vr11<%r9>, vr1 */
 	movsbl   %r10b, %r10d
-	movl     %r10d, -8(%rbp)
-	movl     -8(%rbp), %eax      /* mov_l    vr0, vr11 */
+	movl     %r10d, %r9d
+	movl     %r9d, %eax          /* mov_l    vr0, vr11<%r9> */
 	jmp      .Lctoi_return       /* jmp      .Lctoi_return */
 .Lctoi_return:
 	addq     $16, %rsp           /* leave    $0 */
@@ -21,46 +20,33 @@ ctoi:
 main:
 	pushq    %rbp                /* enter    $0 */
 	movq     %rsp, %rbp
-	subq     $176, %rsp
-	movb     $72, -168(%rbp)     /* mov_b    vr10, $72 */
-	movb     -168(%rbp), %dil    /* mov_b    vr1, vr10 */
+	movb     $72, %dil           /* mov_b    vr1, $72 */
 	call     ctoi                /* call     ctoi */
-	movl     %eax, -160(%rbp)    /* mov_l    vr11, vr0 */
-	movl     -160(%rbp), %edi    /* mov_l    vr1, vr11 */
+	movl     %eax, %edi          /* mov_l    vr1, vr0 */
 	call     print_i32           /* call     print_i32 */
 	call     print_nl            /* call     print_nl */
-	movb     $101, -136(%rbp)    /* mov_b    vr14, $101 */
-	movb     -136(%rbp), %dil    /* mov_b    vr1, vr14 */
+	movb     $101, %dil          /* mov_b    vr1, $101 */
 	call     ctoi                /* call     ctoi */
-	movl     %eax, -128(%rbp)    /* mov_l    vr15, vr0 */
-	movl     -128(%rbp), %edi    /* mov_l    vr1, vr15 */
+	movl     %eax, %edi          /* mov_l    vr1, vr0 */
 	call     print_i32           /* call     print_i32 */
 	call     print_nl            /* call     print_nl */
-	movb     $108, -104(%rbp)    /* mov_b    vr18, $108 */
-	movb     -104(%rbp), %dil    /* mov_b    vr1, vr18 */
+	movb     $108, %dil          /* mov_b    vr1, $108 */
 	call     ctoi                /* call     ctoi */
-	movl     %eax, -96(%rbp)     /* mov_l    vr19, vr0 */
-	movl     -96(%rbp), %edi     /* mov_l    vr1, vr19 */
+	movl     %eax, %edi          /* mov_l    vr1, vr0 */
 	call     print_i32           /* call     print_i32 */
 	call     print_nl            /* call     print_nl */
-	movb     $108, -72(%rbp)     /* mov_b    vr22, $108 */
-	movb     -72(%rbp), %dil     /* mov_b    vr1, vr22 */
+	movb     $108, %dil          /* mov_b    vr1, $108 */
 	call     ctoi                /* call     ctoi */
-	movl     %eax, -64(%rbp)     /* mov_l    vr23, vr0 */
-	movl     -64(%rbp), %edi     /* mov_l    vr1, vr23 */
+	movl     %eax, %edi          /* mov_l    vr1, vr0 */
 	call     print_i32           /* call     print_i32 */
 	call     print_nl            /* call     print_nl */
-	movb     $111, -40(%rbp)     /* mov_b    vr26, $111 */
-	movb     -40(%rbp), %dil     /* mov_b    vr1, vr26 */
+	movb     $111, %dil          /* mov_b    vr1, $111 */
 	call     ctoi                /* call     ctoi */
-	movl     %eax, -32(%rbp)     /* mov_l    vr27, vr0 */
-	movl     -32(%rbp), %edi     /* mov_l    vr1, vr27 */
+	movl     %eax, %edi          /* mov_l    vr1, vr0 */
 	call     print_i32           /* call     print_i32 */
 	call     print_nl            /* call     print_nl */
-	movl     $0, -8(%rbp)        /* mov_l    vr30, $0 */
-	movl     -8(%rbp), %eax      /* mov_l    vr0, vr30 */
+	movl     $0, %eax            /* mov_l    vr0, $0 */
 	jmp      .Lmain_return       /* jmp      .Lmain_return */
 .Lmain_return:
-	addq     $176, %rsp          /* leave    $0 */
-	popq     %rbp
+	popq     %rbp                /* leave    $0 */
 	ret                          /* ret       */

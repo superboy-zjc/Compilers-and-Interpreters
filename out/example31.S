@@ -15,45 +15,40 @@
 read_m500x500:
 	pushq    %rbp                /* enter    $0 */
 	movq     %rsp, %rbp
-	subq     $96, %rsp
-	movq     %rdi, -88(%rbp)     /* mov_q    vr10, vr1 */
-	movl     $0, -72(%rbp)       /* mov_l    vr12, $0 */
-	movl     -72(%rbp), %r10d    /* mov_l    vr11, vr12 */
-	movl     %r10d, -80(%rbp)
+	subq     $16, %rsp
+	pushq    %rbx
+	pushq    %r12
+	movq     %rdi, %r12          /* mov_q    vr10<%r12>, vr1 */
+	movl     $0, %ebx            /* mov_l    vr11<%rbx>, $0 */
 	jmp      .L1                 /* jmp      .L1 */
 .L0:
-	movl     -80(%rbp), %r11d    /* sconv_lq vr13, vr11 */
-	movslq   %r11d, %r11
-	movq     %r11, -64(%rbp)
-	movq     -64(%rbp), %r10     /* mul_q    vr14, vr13, $8 */
-	imulq    $8, %r10
-	movq     %r10, -56(%rbp)
-	movq     -88(%rbp), %r11     /* add_q    vr15, vr10, vr14 */
-	addq     -56(%rbp), %r11
-	movq     %r11, -48(%rbp)
 	call     read_i64            /* call     read_i64 */
-	movq     %rax, -40(%rbp)     /* mov_q    vr16, vr0 */
-	movq     -48(%rbp), %r10     /* mov_q    (vr15), vr16 */
-	movq     -40(%rbp), %r11
-	movq     %r11, (%r10)
-	movl     $1, -32(%rbp)       /* mov_l    vr17, $1 */
-	movl     -80(%rbp), %r10d    /* add_l    vr18, vr11, vr17 */
-	addl     -32(%rbp), %r10d
-	movl     %r10d, -24(%rbp)
-	movl     -24(%rbp), %r11d    /* mov_l    vr11, vr18 */
-	movl     %r11d, -80(%rbp)
+	movl     %ebx, %r10d         /* sconv_lq vr14<%r9>, vr11<%rbx> */
+	movslq   %r10d, %r10
+	movq     %r10, %r9
+	imulq    $8, %r9             /* mul_q    vr15<%r8>, vr14<%r9>, $8 */
+	movq     %r9, %r8
+	movq     %r12, %r11          /* add_q    vr16<%r9>, vr10<%r12>, vr15<%r8> */
+	addq     %r8, %r11
+	movq     %r11, %r9
+	movq     %r9, %r10           /* mov_q    (vr16<%r9>), vr0 */
+	movq     %rax, (%r10)
+	movl     %ebx, %r11d         /* add_l    vr18<%r9>, vr11<%rbx>, $1 */
+	addl     $1, %r11d
+	movl     %r11d, %r9d
+	movl     %r9d, %ebx          /* mov_l    vr11<%rbx>, vr18<%r9> */
 .L1:
-	movl     $250000, -16(%rbp)  /* mov_l    vr19, $250000 */
-	movl     -80(%rbp), %r10d    /* cmplt_l  vr20, vr11, vr19 */
-	cmpl     -16(%rbp), %r10d
+	cmpl     $250000, %ebx       /* cmplt_l  vr20<%r9>, vr11<%rbx>, $250000 */
 	setl     %r10b
 	movzbl   %r10b, %r11d
-	movl     %r11d, -8(%rbp)
-	cmpl     $0, -8(%rbp)        /* cjmp_t   vr20, .L0 */
+	movl     %r11d, %r9d
+	cmpl     $0, %r9d            /* cjmp_t   vr20<%r9>, .L0 */
 	jne      .L0
 	jmp      .Lread_m500x500_return /* jmp      .Lread_m500x500_return */
 .Lread_m500x500_return:
-	addq     $96, %rsp           /* leave    $0 */
+	popq     %r12                /* leave    $0 */
+	popq     %rbx
+	addq     $16, %rsp
 	popq     %rbp
 	ret                          /* ret       */
 
@@ -61,344 +56,245 @@ read_m500x500:
 main:
 	pushq    %rbp                /* enter    $6000000 */
 	movq     %rsp, %rbp
-	subq     $6000832, %rsp
-	movl     $500, -6000784(%rbp) /* mov_l    vr16, $500 */
-	movl     -6000784(%rbp), %r10d /* mov_l    vr10, vr16 */
-	movl     %r10d, -6000832(%rbp)
-	leaq     -6000000(%rbp), %r10 /* localaddr vr17, $0 */
-	movq     %r10, -6000776(%rbp)
-	movl     $0, -6000768(%rbp)  /* mov_l    vr18, $0 */
-	movl     -6000768(%rbp), %r11d /* sconv_lq vr19, vr18 */
-	movslq   %r11d, %r11
-	movq     %r11, -6000760(%rbp)
-	movq     -6000760(%rbp), %r10 /* mul_q    vr20, vr19, $4000 */
-	imulq    $4000, %r10
-	movq     %r10, -6000752(%rbp)
-	movq     -6000776(%rbp), %r11 /* add_q    vr21, vr17, vr20 */
-	addq     -6000752(%rbp), %r11
-	movq     %r11, -6000744(%rbp)
-	movl     $0, -6000736(%rbp)  /* mov_l    vr22, $0 */
-	movl     -6000736(%rbp), %r10d /* sconv_lq vr23, vr22 */
-	movslq   %r10d, %r10
-	movq     %r10, -6000728(%rbp)
-	movq     -6000728(%rbp), %r11 /* mul_q    vr24, vr23, $8 */
-	imulq    $8, %r11
-	movq     %r11, -6000720(%rbp)
-	movq     -6000744(%rbp), %r10 /* add_q    vr25, vr21, vr24 */
-	addq     -6000720(%rbp), %r10
-	movq     %r10, -6000712(%rbp)
-	movq     -6000712(%rbp), %rdi /* mov_q    vr1, vr25 */
+	subq     $6000048, %rsp
+	pushq    %rbx
+	pushq    %r12
+	pushq    %r13
+	pushq    %r14
+	movl     $500, %r13d         /* mov_l    vr10<%r13>, $500 */
+	leaq     -6000000(%rbp), %r10 /* localaddr vr17<%r9>, $0 */
+	movq     %r10, %r9
+	movq     %r9, %r10           /* add_q    vr21<%r8>, vr17<%r9>, $0 */
+	addq     $0, %r10
+	movq     %r10, %r8
+	movq     %r8, %r11           /* add_q    vr25<%r9>, vr21<%r8>, $0 */
+	addq     $0, %r11
+	movq     %r11, %r9
+	movq     %r9, %rdi           /* mov_q    vr1, vr25<%r9> */
 	call     read_m500x500       /* call     read_m500x500 */
-	leaq     -4000000(%rbp), %r10 /* localaddr vr27, $2000000 */
-	movq     %r10, -6000696(%rbp)
-	movl     $0, -6000688(%rbp)  /* mov_l    vr28, $0 */
-	movl     -6000688(%rbp), %r11d /* sconv_lq vr29, vr28 */
-	movslq   %r11d, %r11
-	movq     %r11, -6000680(%rbp)
-	movq     -6000680(%rbp), %r10 /* mul_q    vr30, vr29, $4000 */
-	imulq    $4000, %r10
-	movq     %r10, -6000672(%rbp)
-	movq     -6000696(%rbp), %r11 /* add_q    vr31, vr27, vr30 */
-	addq     -6000672(%rbp), %r11
-	movq     %r11, -6000664(%rbp)
-	movl     $0, -6000656(%rbp)  /* mov_l    vr32, $0 */
-	movl     -6000656(%rbp), %r10d /* sconv_lq vr33, vr32 */
-	movslq   %r10d, %r10
-	movq     %r10, -6000648(%rbp)
-	movq     -6000648(%rbp), %r11 /* mul_q    vr34, vr33, $8 */
-	imulq    $8, %r11
-	movq     %r11, -6000640(%rbp)
-	movq     -6000664(%rbp), %r10 /* add_q    vr35, vr31, vr34 */
-	addq     -6000640(%rbp), %r10
-	movq     %r10, -6000632(%rbp)
-	movq     -6000632(%rbp), %rdi /* mov_q    vr1, vr35 */
+	leaq     -4000000(%rbp), %r10 /* localaddr vr27<%r9>, $2000000 */
+	movq     %r10, %r9
+	movq     %r9, %r10           /* add_q    vr31<%r8>, vr27<%r9>, $0 */
+	addq     $0, %r10
+	movq     %r10, %r8
+	movq     %r8, %r11           /* add_q    vr35<%r9>, vr31<%r8>, $0 */
+	addq     $0, %r11
+	movq     %r11, %r9
+	movq     %r9, %rdi           /* mov_q    vr1, vr35<%r9> */
 	call     read_m500x500       /* call     read_m500x500 */
-	movl     $0, -6000616(%rbp)  /* mov_l    vr37, $0 */
-	movl     -6000616(%rbp), %r11d /* mov_l    vr11, vr37 */
-	movl     %r11d, -6000824(%rbp)
+	movl     $0, %ebx            /* mov_l    vr11<%rbx>, $0 */
 	jmp      .L3                 /* jmp      .L3 */
 .L2:
-	movl     $0, -6000608(%rbp)  /* mov_l    vr38, $0 */
-	movl     -6000608(%rbp), %r10d /* mov_l    vr12, vr38 */
-	movl     %r10d, -6000816(%rbp)
+	movl     $0, %r12d           /* mov_l    vr12<%r12>, $0 */
 	jmp      .L5                 /* jmp      .L5 */
 .L4:
-	leaq     -2000000(%rbp), %r10 /* localaddr vr39, $4000000 */
-	movq     %r10, -6000600(%rbp)
-	movl     -6000824(%rbp), %r11d /* sconv_lq vr40, vr11 */
-	movslq   %r11d, %r11
-	movq     %r11, -6000592(%rbp)
-	movq     -6000592(%rbp), %r10 /* mul_q    vr41, vr40, $4000 */
-	imulq    $4000, %r10
-	movq     %r10, -6000584(%rbp)
-	movq     -6000600(%rbp), %r11 /* add_q    vr42, vr39, vr41 */
-	addq     -6000584(%rbp), %r11
-	movq     %r11, -6000576(%rbp)
-	movl     -6000816(%rbp), %r10d /* sconv_lq vr43, vr12 */
+	leaq     -2000000(%rbp), %r10 /* localaddr vr39<%r9>, $4000000 */
+	movq     %r10, %r9
+	movl     %ebx, %r10d         /* sconv_lq vr40<%r8>, vr11<%rbx> */
 	movslq   %r10d, %r10
-	movq     %r10, -6000568(%rbp)
-	movq     -6000568(%rbp), %r11 /* mul_q    vr44, vr43, $8 */
-	imulq    $8, %r11
-	movq     %r11, -6000560(%rbp)
-	movq     -6000576(%rbp), %r10 /* add_q    vr45, vr42, vr44 */
-	addq     -6000560(%rbp), %r10
-	movq     %r10, -6000552(%rbp)
-	movq     $0, -6000544(%rbp)  /* mov_q    vr46, $0 */
-	movq     -6000552(%rbp), %r11 /* mov_q    (vr45), vr46 */
-	movq     -6000544(%rbp), %r10
-	movq     %r10, (%r11)
-	movl     $1, -6000536(%rbp)  /* mov_l    vr47, $1 */
-	movl     -6000816(%rbp), %r11d /* add_l    vr48, vr12, vr47 */
-	addl     -6000536(%rbp), %r11d
-	movl     %r11d, -6000528(%rbp)
-	movl     -6000528(%rbp), %r10d /* mov_l    vr12, vr48 */
-	movl     %r10d, -6000816(%rbp)
+	movq     %r10, %r8
+	imulq    $4000, %r8          /* mul_q    vr41<%rcx>, vr40<%r8>, $4000 */
+	movq     %r8, %rcx
+	movq     %r9, %r11           /* add_q    vr42<%r8>, vr39<%r9>, vr41<%rcx> */
+	addq     %rcx, %r11
+	movq     %r11, %r8
+	movl     %r12d, %r10d        /* sconv_lq vr43<%rcx>, vr12<%r12> */
+	movslq   %r10d, %r10
+	movq     %r10, %rcx
+	imulq    $8, %rcx            /* mul_q    vr44<%r9>, vr43<%rcx>, $8 */
+	movq     %rcx, %r9
+	movq     %r8, %r11           /* add_q    vr45<%rcx>, vr42<%r8>, vr44<%r9> */
+	addq     %r9, %r11
+	movq     %r11, %rcx
+	movq     %rcx, %r10          /* mov_q    (vr45<%rcx>), $0 */
+	movq     $0, (%r10)
+	movl     %r12d, %r11d        /* add_l    vr48<%rcx>, vr12<%r12>, $1 */
+	addl     $1, %r11d
+	movl     %r11d, %ecx
+	movl     %ecx, %r12d         /* mov_l    vr12<%r12>, vr48<%rcx> */
 .L5:
-	movl     -6000816(%rbp), %r11d /* cmplt_l  vr49, vr12, vr10 */
-	cmpl     -6000832(%rbp), %r11d
-	setl     %r11b
-	movzbl   %r11b, %r11d
-	movl     %r11d, -6000520(%rbp)
-	cmpl     $0, -6000520(%rbp)  /* cjmp_t   vr49, .L4 */
-	jne      .L4
-	movl     $1, -6000512(%rbp)  /* mov_l    vr50, $1 */
-	movl     -6000824(%rbp), %r10d /* add_l    vr51, vr11, vr50 */
-	addl     -6000512(%rbp), %r10d
-	movl     %r10d, -6000504(%rbp)
-	movl     -6000504(%rbp), %r11d /* mov_l    vr11, vr51 */
-	movl     %r11d, -6000824(%rbp)
-.L3:
-	movl     -6000824(%rbp), %r10d /* cmplt_l  vr52, vr11, vr10 */
-	cmpl     -6000832(%rbp), %r10d
+	cmpl     %r13d, %r12d        /* cmplt_l  vr49<%r9>, vr12<%r12>, vr10<%r13> */
 	setl     %r10b
 	movzbl   %r10b, %r11d
-	movl     %r11d, -6000496(%rbp)
-	cmpl     $0, -6000496(%rbp)  /* cjmp_t   vr52, .L2 */
+	movl     %r11d, %r9d
+	cmpl     $0, %r9d            /* cjmp_t   vr49<%r9>, .L4 */
+	jne      .L4
+	movl     %ebx, %r11d         /* add_l    vr51<%r9>, vr11<%rbx>, $1 */
+	addl     $1, %r11d
+	movl     %r11d, %r9d
+	movl     %r9d, %ebx          /* mov_l    vr11<%rbx>, vr51<%r9> */
+.L3:
+	cmpl     %r13d, %ebx         /* cmplt_l  vr52<%r9>, vr11<%rbx>, vr10<%r13> */
+	setl     %r10b
+	movzbl   %r10b, %r11d
+	movl     %r11d, %r9d
+	cmpl     $0, %r9d            /* cjmp_t   vr52<%r9>, .L2 */
 	jne      .L2
-	movl     $0, -6000488(%rbp)  /* mov_l    vr53, $0 */
-	movl     -6000488(%rbp), %r11d /* mov_l    vr13, vr53 */
-	movl     %r11d, -6000808(%rbp)
+	movl     $0, %r14d           /* mov_l    vr13<%r14>, $0 */
 	jmp      .L7                 /* jmp      .L7 */
 .L6:
-	movl     $0, -6000480(%rbp)  /* mov_l    vr54, $0 */
-	movl     -6000480(%rbp), %r10d /* mov_l    vr11, vr54 */
-	movl     %r10d, -6000824(%rbp)
+	movl     $0, %ebx            /* mov_l    vr11<%rbx>, $0 */
 	jmp      .L9                 /* jmp      .L9 */
 .L8:
-	leaq     -6000000(%rbp), %r10 /* localaddr vr55, $0 */
-	movq     %r10, -6000472(%rbp)
-	movl     -6000824(%rbp), %r11d /* sconv_lq vr56, vr11 */
+	leaq     -6000000(%rbp), %r10 /* localaddr vr55<%r9>, $0 */
+	movq     %r10, %r9
+	movl     %ebx, %r11d         /* sconv_lq vr56<%r8>, vr11<%rbx> */
 	movslq   %r11d, %r11
-	movq     %r11, -6000464(%rbp)
-	movq     -6000464(%rbp), %r10 /* mul_q    vr57, vr56, $4000 */
-	imulq    $4000, %r10
-	movq     %r10, -6000456(%rbp)
-	movq     -6000472(%rbp), %r11 /* add_q    vr58, vr55, vr57 */
-	addq     -6000456(%rbp), %r11
-	movq     %r11, -6000448(%rbp)
-	movl     -6000808(%rbp), %r10d /* sconv_lq vr59, vr13 */
-	movslq   %r10d, %r10
-	movq     %r10, -6000440(%rbp)
-	movq     -6000440(%rbp), %r11 /* mul_q    vr60, vr59, $8 */
-	imulq    $8, %r11
-	movq     %r11, -6000432(%rbp)
-	movq     -6000448(%rbp), %r10 /* add_q    vr61, vr58, vr60 */
-	addq     -6000432(%rbp), %r10
-	movq     %r10, -6000424(%rbp)
-	movq     -6000424(%rbp), %r11 /* mov_q    vr14, (vr61) */
+	movq     %r11, %r8
+	imulq    $4000, %r8          /* mul_q    vr57<%rcx>, vr56<%r8>, $4000 */
+	movq     %r8, %rcx
+	movq     %r9, %r10           /* add_q    vr58<%r8>, vr55<%r9>, vr57<%rcx> */
+	addq     %rcx, %r10
+	movq     %r10, %r8
+	movl     %r14d, %r11d        /* sconv_lq vr59<%rcx>, vr13<%r14> */
+	movslq   %r11d, %r11
+	movq     %r11, %rcx
+	imulq    $8, %rcx            /* mul_q    vr60<%r9>, vr59<%rcx>, $8 */
+	movq     %rcx, %r9
+	movq     %r8, %r10           /* add_q    vr61<%rcx>, vr58<%r8>, vr60<%r9> */
+	addq     %r9, %r10
+	movq     %r10, %rcx
+	movq     %rcx, %r11          /* mov_q    vr14, (vr61<%rcx>) */
 	movq     (%r11), %r10
-	movq     %r10, -6000800(%rbp)
-	movl     $0, -6000416(%rbp)  /* mov_l    vr62, $0 */
-	movl     -6000416(%rbp), %r11d /* mov_l    vr12, vr62 */
-	movl     %r11d, -6000816(%rbp)
+	movq     %r10, -6000016(%rbp)
+	movl     $0, %r12d           /* mov_l    vr12<%r12>, $0 */
 	jmp      .L11                /* jmp      .L11 */
 .L10:
-	leaq     -2000000(%rbp), %r10 /* localaddr vr63, $4000000 */
-	movq     %r10, -6000408(%rbp)
-	movl     -6000824(%rbp), %r10d /* sconv_lq vr64, vr11 */
-	movslq   %r10d, %r10
-	movq     %r10, -6000400(%rbp)
-	movq     -6000400(%rbp), %r11 /* mul_q    vr65, vr64, $4000 */
-	imulq    $4000, %r11
-	movq     %r11, -6000392(%rbp)
-	movq     -6000408(%rbp), %r10 /* add_q    vr66, vr63, vr65 */
-	addq     -6000392(%rbp), %r10
-	movq     %r10, -6000384(%rbp)
-	movl     -6000816(%rbp), %r11d /* sconv_lq vr67, vr12 */
+	leaq     -2000000(%rbp), %r10 /* localaddr vr63<%r9>, $4000000 */
+	movq     %r10, %r9
+	movl     %ebx, %r11d         /* sconv_lq vr64<%r8>, vr11<%rbx> */
 	movslq   %r11d, %r11
-	movq     %r11, -6000376(%rbp)
-	movq     -6000376(%rbp), %r10 /* mul_q    vr68, vr67, $8 */
-	imulq    $8, %r10
-	movq     %r10, -6000368(%rbp)
-	movq     -6000384(%rbp), %r11 /* add_q    vr69, vr66, vr68 */
-	addq     -6000368(%rbp), %r11
-	movq     %r11, -6000360(%rbp)
-	movq     -6000360(%rbp), %r10 /* mov_q    vr15, (vr69) */
-	movq     (%r10), %r11
-	movq     %r11, -6000792(%rbp)
-	leaq     -4000000(%rbp), %r10 /* localaddr vr70, $2000000 */
-	movq     %r10, -6000352(%rbp)
-	movl     -6000808(%rbp), %r10d /* sconv_lq vr71, vr13 */
-	movslq   %r10d, %r10
-	movq     %r10, -6000344(%rbp)
-	movq     -6000344(%rbp), %r11 /* mul_q    vr72, vr71, $4000 */
-	imulq    $4000, %r11
-	movq     %r11, -6000336(%rbp)
-	movq     -6000352(%rbp), %r10 /* add_q    vr73, vr70, vr72 */
-	addq     -6000336(%rbp), %r10
-	movq     %r10, -6000328(%rbp)
-	movl     -6000816(%rbp), %r11d /* sconv_lq vr74, vr12 */
+	movq     %r11, %r8
+	imulq    $4000, %r8          /* mul_q    vr65<%rcx>, vr64<%r8>, $4000 */
+	movq     %r8, %rcx
+	movq     %r9, %r10           /* add_q    vr66<%r8>, vr63<%r9>, vr65<%rcx> */
+	addq     %rcx, %r10
+	movq     %r10, %r8
+	movl     %r12d, %r11d        /* sconv_lq vr67<%rcx>, vr12<%r12> */
 	movslq   %r11d, %r11
-	movq     %r11, -6000320(%rbp)
-	movq     -6000320(%rbp), %r10 /* mul_q    vr75, vr74, $8 */
-	imulq    $8, %r10
-	movq     %r10, -6000312(%rbp)
-	movq     -6000328(%rbp), %r11 /* add_q    vr76, vr73, vr75 */
-	addq     -6000312(%rbp), %r11
-	movq     %r11, -6000304(%rbp)
-	movq     -6000304(%rbp), %r10 /* mov_q    vr78, (vr76) */
-	movq     (%r10), %r11
-	movq     %r11, -6000288(%rbp)
-	movq     -6000288(%rbp), %r10 /* mul_q    vr77, vr14, vr78 */
-	movq     -6000800(%rbp), %r11
-	imulq    %r10, %r11
-	movq     %r11, -6000296(%rbp)
-	movq     -6000792(%rbp), %r10 /* add_q    vr79, vr15, vr77 */
-	addq     -6000296(%rbp), %r10
-	movq     %r10, -6000280(%rbp)
-	movq     -6000280(%rbp), %r11 /* mov_q    vr15, vr79 */
-	movq     %r11, -6000792(%rbp)
-	leaq     -2000000(%rbp), %r10 /* localaddr vr80, $4000000 */
-	movq     %r10, -6000272(%rbp)
-	movl     -6000824(%rbp), %r10d /* sconv_lq vr81, vr11 */
-	movslq   %r10d, %r10
-	movq     %r10, -6000264(%rbp)
-	movq     -6000264(%rbp), %r11 /* mul_q    vr82, vr81, $4000 */
-	imulq    $4000, %r11
-	movq     %r11, -6000256(%rbp)
-	movq     -6000272(%rbp), %r10 /* add_q    vr83, vr80, vr82 */
-	addq     -6000256(%rbp), %r10
-	movq     %r10, -6000248(%rbp)
-	movl     -6000816(%rbp), %r11d /* sconv_lq vr84, vr12 */
+	movq     %r11, %rcx
+	imulq    $8, %rcx            /* mul_q    vr68<%r9>, vr67<%rcx>, $8 */
+	movq     %rcx, %r9
+	movq     %r8, %r10           /* add_q    vr69<%rcx>, vr66<%r8>, vr68<%r9> */
+	addq     %r9, %r10
+	movq     %r10, %rcx
+	movq     %rcx, %r11          /* mov_q    vr15, (vr69<%rcx>) */
+	movq     (%r11), %r10
+	movq     %r10, -6000008(%rbp)
+	leaq     -4000000(%rbp), %r10 /* localaddr vr70<%r8>, $2000000 */
+	movq     %r10, %r8
+	movl     %r14d, %r11d        /* sconv_lq vr71<%rdx>, vr13<%r14> */
 	movslq   %r11d, %r11
-	movq     %r11, -6000240(%rbp)
-	movq     -6000240(%rbp), %r10 /* mul_q    vr85, vr84, $8 */
-	imulq    $8, %r10
-	movq     %r10, -6000232(%rbp)
-	movq     -6000248(%rbp), %r11 /* add_q    vr86, vr83, vr85 */
-	addq     -6000232(%rbp), %r11
-	movq     %r11, -6000224(%rbp)
-	movq     -6000224(%rbp), %r10 /* mov_q    (vr86), vr15 */
-	movq     -6000792(%rbp), %r11
-	movq     %r11, (%r10)
-	movl     $1, -6000216(%rbp)  /* mov_l    vr87, $1 */
-	movl     -6000816(%rbp), %r10d /* add_l    vr88, vr12, vr87 */
-	addl     -6000216(%rbp), %r10d
-	movl     %r10d, -6000208(%rbp)
-	movl     -6000208(%rbp), %r11d /* mov_l    vr12, vr88 */
-	movl     %r11d, -6000816(%rbp)
+	movq     %r11, %rdx
+	imulq    $4000, %rdx         /* mul_q    vr72<%rsi>, vr71<%rdx>, $4000 */
+	movq     %rdx, %rsi
+	movq     %r8, %r10           /* add_q    vr73<%rdx>, vr70<%r8>, vr72<%rsi> */
+	addq     %rsi, %r10
+	movq     %r10, %rdx
+	movq     %rdx, %r11          /* add_q    vr76<%rsi>, vr73<%rdx>, vr68<%r9> */
+	addq     %r9, %r11
+	movq     %r11, %rsi
+	movq     %rsi, %r10          /* mov_q    vr78<%r9>, (vr76<%rsi>) */
+	movq     (%r10), %r9
+	movq     -6000016(%rbp), %r11 /* mul_q    vr77<%rsi>, vr14, vr78<%r9> */
+	imulq    %r9, %r11
+	movq     %r11, %rsi
+	movq     -6000008(%rbp), %r10 /* add_q    vr79<%r9>, vr15, vr77<%rsi> */
+	addq     %rsi, %r10
+	movq     %r10, %r9
+	movq     %rcx, %rsi          /* mov_q    vr86<%rsi>, vr69<%rcx> */
+	movq     %rsi, %r11          /* mov_q    (vr86<%rsi>), vr79<%r9> */
+	movq     %r9, (%r11)
+	movl     %r12d, %r10d        /* add_l    vr88<%r9>, vr12<%r12>, $1 */
+	addl     $1, %r10d
+	movl     %r10d, %r9d
+	movl     %r9d, %r12d         /* mov_l    vr12<%r12>, vr88<%r9> */
 .L11:
-	movl     -6000816(%rbp), %r10d /* cmplt_l  vr89, vr12, vr10 */
-	cmpl     -6000832(%rbp), %r10d
-	setl     %r10b
-	movzbl   %r10b, %r11d
-	movl     %r11d, -6000200(%rbp)
-	cmpl     $0, -6000200(%rbp)  /* cjmp_t   vr89, .L10 */
-	jne      .L10
-	movl     $1, -6000192(%rbp)  /* mov_l    vr90, $1 */
-	movl     -6000824(%rbp), %r11d /* add_l    vr91, vr11, vr90 */
-	addl     -6000192(%rbp), %r11d
-	movl     %r11d, -6000184(%rbp)
-	movl     -6000184(%rbp), %r10d /* mov_l    vr11, vr91 */
-	movl     %r10d, -6000824(%rbp)
-.L9:
-	movl     -6000824(%rbp), %r11d /* cmplt_l  vr92, vr11, vr10 */
-	cmpl     -6000832(%rbp), %r11d
+	cmpl     %r13d, %r12d        /* cmplt_l  vr89<%r9>, vr12<%r12>, vr10<%r13> */
 	setl     %r11b
 	movzbl   %r11b, %r11d
-	movl     %r11d, -6000176(%rbp)
-	cmpl     $0, -6000176(%rbp)  /* cjmp_t   vr92, .L8 */
+	movl     %r11d, %r9d
+	cmpl     $0, %r9d            /* cjmp_t   vr89<%r9>, .L10 */
+	jne      .L10
+	movl     %ebx, %r10d         /* add_l    vr91<%r9>, vr11<%rbx>, $1 */
+	addl     $1, %r10d
+	movl     %r10d, %r9d
+	movl     %r9d, %ebx          /* mov_l    vr11<%rbx>, vr91<%r9> */
+.L9:
+	cmpl     %r13d, %ebx         /* cmplt_l  vr92<%r9>, vr11<%rbx>, vr10<%r13> */
+	setl     %r11b
+	movzbl   %r11b, %r11d
+	movl     %r11d, %r9d
+	cmpl     $0, %r9d            /* cjmp_t   vr92<%r9>, .L8 */
 	jne      .L8
-	movl     $1, -6000168(%rbp)  /* mov_l    vr93, $1 */
-	movl     -6000808(%rbp), %r10d /* add_l    vr94, vr13, vr93 */
-	addl     -6000168(%rbp), %r10d
-	movl     %r10d, -6000160(%rbp)
-	movl     -6000160(%rbp), %r11d /* mov_l    vr13, vr94 */
-	movl     %r11d, -6000808(%rbp)
+	movl     %r14d, %r10d        /* add_l    vr94<%r9>, vr13<%r14>, $1 */
+	addl     $1, %r10d
+	movl     %r10d, %r9d
+	movl     %r9d, %r14d         /* mov_l    vr13<%r14>, vr94<%r9> */
 .L7:
-	movl     -6000808(%rbp), %r10d /* cmplt_l  vr95, vr13, vr10 */
-	cmpl     -6000832(%rbp), %r10d
-	setl     %r10b
-	movzbl   %r10b, %r11d
-	movl     %r11d, -6000152(%rbp)
-	cmpl     $0, -6000152(%rbp)  /* cjmp_t   vr95, .L6 */
+	cmpl     %r13d, %r14d        /* cmplt_l  vr95<%r9>, vr13<%r14>, vr10<%r13> */
+	setl     %r11b
+	movzbl   %r11b, %r11d
+	movl     %r11d, %r9d
+	cmpl     $0, %r9d            /* cjmp_t   vr95<%r9>, .L6 */
 	jne      .L6
-	movl     $0, -6000144(%rbp)  /* mov_l    vr96, $0 */
-	movl     -6000144(%rbp), %r11d /* mov_l    vr11, vr96 */
-	movl     %r11d, -6000824(%rbp)
+	movl     $0, %ebx            /* mov_l    vr11<%rbx>, $0 */
 	jmp      .L13                /* jmp      .L13 */
 .L12:
-	movl     $0, -6000136(%rbp)  /* mov_l    vr97, $0 */
-	movl     -6000136(%rbp), %r10d /* mov_l    vr12, vr97 */
-	movl     %r10d, -6000816(%rbp)
+	movl     $0, %r12d           /* mov_l    vr12<%r12>, $0 */
 	jmp      .L15                /* jmp      .L15 */
 .L14:
-	leaq     -2000000(%rbp), %r10 /* localaddr vr98, $4000000 */
-	movq     %r10, -6000128(%rbp)
-	movl     -6000824(%rbp), %r11d /* sconv_lq vr99, vr11 */
-	movslq   %r11d, %r11
-	movq     %r11, -6000120(%rbp)
-	movq     -6000120(%rbp), %r10 /* mul_q    vr100, vr99, $4000 */
-	imulq    $4000, %r10
-	movq     %r10, -6000112(%rbp)
-	movq     -6000128(%rbp), %r11 /* add_q    vr101, vr98, vr100 */
-	addq     -6000112(%rbp), %r11
-	movq     %r11, -6000104(%rbp)
-	movl     -6000816(%rbp), %r10d /* sconv_lq vr102, vr12 */
+	leaq     -2000000(%rbp), %r10 /* localaddr vr98<%r9>, $4000000 */
+	movq     %r10, %r9
+	movl     %ebx, %r10d         /* sconv_lq vr99<%r8>, vr11<%rbx> */
 	movslq   %r10d, %r10
-	movq     %r10, -6000096(%rbp)
-	movq     -6000096(%rbp), %r11 /* mul_q    vr103, vr102, $8 */
-	imulq    $8, %r11
-	movq     %r11, -6000088(%rbp)
-	movq     -6000104(%rbp), %r10 /* add_q    vr104, vr101, vr103 */
-	addq     -6000088(%rbp), %r10
-	movq     %r10, -6000080(%rbp)
-	movq     -6000080(%rbp), %r11 /* mov_q    vr1, (vr104) */
-	movq     (%r11), %rdi
+	movq     %r10, %r8
+	imulq    $4000, %r8          /* mul_q    vr100<%rcx>, vr99<%r8>, $4000 */
+	movq     %r8, %rcx
+	movq     %r9, %r11           /* add_q    vr101<%r8>, vr98<%r9>, vr100<%rcx> */
+	addq     %rcx, %r11
+	movq     %r11, %r8
+	movl     %r12d, %r10d        /* sconv_lq vr102<%rcx>, vr12<%r12> */
+	movslq   %r10d, %r10
+	movq     %r10, %rcx
+	imulq    $8, %rcx            /* mul_q    vr103<%r9>, vr102<%rcx>, $8 */
+	movq     %rcx, %r9
+	movq     %r8, %r11           /* add_q    vr104<%rcx>, vr101<%r8>, vr103<%r9> */
+	addq     %r9, %r11
+	movq     %r11, %rcx
+	movq     %rcx, %r10          /* mov_q    vr1, (vr104<%rcx>) */
+	movq     (%r10), %rdi
 	call     print_i64           /* call     print_i64 */
 	call     print_nl            /* call     print_nl */
-	movl     $1, -6000056(%rbp)  /* mov_l    vr107, $1 */
-	movl     -6000816(%rbp), %r10d /* add_l    vr108, vr12, vr107 */
-	addl     -6000056(%rbp), %r10d
-	movl     %r10d, -6000048(%rbp)
-	movl     -6000048(%rbp), %r11d /* mov_l    vr12, vr108 */
-	movl     %r11d, -6000816(%rbp)
+	movl     %r12d, %r11d        /* add_l    vr108<%r9>, vr12<%r12>, $1 */
+	addl     $1, %r11d
+	movl     %r11d, %r9d
+	movl     %r9d, %r12d         /* mov_l    vr12<%r12>, vr108<%r9> */
 .L15:
-	movl     -6000816(%rbp), %r10d /* cmplt_l  vr109, vr12, vr10 */
-	cmpl     -6000832(%rbp), %r10d
+	cmpl     %r13d, %r12d        /* cmplt_l  vr109<%r9>, vr12<%r12>, vr10<%r13> */
 	setl     %r10b
 	movzbl   %r10b, %r11d
-	movl     %r11d, -6000040(%rbp)
-	cmpl     $0, -6000040(%rbp)  /* cjmp_t   vr109, .L14 */
+	movl     %r11d, %r9d
+	cmpl     $0, %r9d            /* cjmp_t   vr109<%r9>, .L14 */
 	jne      .L14
-	movl     $1, -6000032(%rbp)  /* mov_l    vr110, $1 */
-	movl     -6000824(%rbp), %r11d /* add_l    vr111, vr11, vr110 */
-	addl     -6000032(%rbp), %r11d
-	movl     %r11d, -6000024(%rbp)
-	movl     -6000024(%rbp), %r10d /* mov_l    vr11, vr111 */
-	movl     %r10d, -6000824(%rbp)
+	movl     %ebx, %r11d         /* add_l    vr111<%r9>, vr11<%rbx>, $1 */
+	addl     $1, %r11d
+	movl     %r11d, %r9d
+	movl     %r9d, %ebx          /* mov_l    vr11<%rbx>, vr111<%r9> */
 .L13:
-	movl     -6000824(%rbp), %r11d /* cmplt_l  vr112, vr11, vr10 */
-	cmpl     -6000832(%rbp), %r11d
-	setl     %r11b
-	movzbl   %r11b, %r11d
-	movl     %r11d, -6000016(%rbp)
-	cmpl     $0, -6000016(%rbp)  /* cjmp_t   vr112, .L12 */
+	cmpl     %r13d, %ebx         /* cmplt_l  vr112<%r9>, vr11<%rbx>, vr10<%r13> */
+	setl     %r10b
+	movzbl   %r10b, %r11d
+	movl     %r11d, %r9d
+	cmpl     $0, %r9d            /* cjmp_t   vr112<%r9>, .L12 */
 	jne      .L12
-	movl     $0, -6000008(%rbp)  /* mov_l    vr113, $0 */
-	movl     -6000008(%rbp), %eax /* mov_l    vr0, vr113 */
+	movl     $0, %eax            /* mov_l    vr0, $0 */
 	jmp      .Lmain_return       /* jmp      .Lmain_return */
 .Lmain_return:
-	addq     $6000832, %rsp      /* leave    $6000000 */
+	popq     %r14                /* leave    $6000000 */
+	popq     %r13
+	popq     %r12
+	popq     %rbx
+	addq     $6000048, %rsp
 	popq     %rbp
 	ret                          /* ret       */

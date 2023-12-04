@@ -7,34 +7,20 @@
 main:
 	pushq    %rbp                /* enter    $0 */
 	movq     %rsp, %rbp
-	subq     $80, %rsp
-	movl     $2, -56(%rbp)       /* mov_l    vr13, $2 */
-	movl     -56(%rbp), %r10d    /* mov_l    vr10, vr13 */
-	movl     %r10d, -80(%rbp)
-	movl     $3, -48(%rbp)       /* mov_l    vr14, $3 */
-	movl     -48(%rbp), %r11d    /* mov_l    vr11, vr14 */
-	movl     %r11d, -72(%rbp)
-	movl     $1, -40(%rbp)       /* mov_l    vr15, $1 */
-	movl     -40(%rbp), %r10d    /* mov_l    vr12, vr15 */
-	movl     %r10d, -64(%rbp)
-	movl     $1, -32(%rbp)       /* mov_l    vr16, $1 */
-	movl     -80(%rbp), %r11d    /* add_l    vr17, vr10, vr16 */
-	addl     -32(%rbp), %r11d
-	movl     %r11d, -24(%rbp)
-	movl     -24(%rbp), %r10d    /* cmpeq_l  vr18, vr17, vr11 */
-	cmpl     -72(%rbp), %r10d
-	sete     %r10b
-	movzbl   %r10b, %r11d
-	movl     %r11d, -16(%rbp)
-	cmpl     $0, -16(%rbp)       /* cjmp_f   vr18, .L0 */
+	subq     $32, %rsp
+	pushq    %rbx
+	subq     $8, %rsp
+	movl     $1, %ebx            /* mov_l    vr12<%rbx>, $1 */
+	movl     $1, %r9d            /* mov_l    vr18<%r9>, $1 */
+	cmpl     $0, %r9d            /* cjmp_f   vr18<%r9>, .L0 */
 	je       .L0
-	movl     $0, -8(%rbp)        /* mov_l    vr19, $0 */
-	movl     -8(%rbp), %r11d     /* mov_l    vr12, vr19 */
-	movl     %r11d, -64(%rbp)
+	movl     $0, %ebx            /* mov_l    vr12<%rbx>, $0 */
 .L0:
-	movl     -64(%rbp), %eax     /* mov_l    vr0, vr12 */
+	movl     %ebx, %eax          /* mov_l    vr0, vr12<%rbx> */
 	jmp      .Lmain_return       /* jmp      .Lmain_return */
 .Lmain_return:
-	addq     $80, %rsp           /* leave    $0 */
+	addq     $8, %rsp            /* leave    $0 */
+	popq     %rbx
+	addq     $32, %rsp
 	popq     %rbp
 	ret                          /* ret       */

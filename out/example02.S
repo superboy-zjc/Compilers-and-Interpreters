@@ -7,40 +7,38 @@
 main:
 	pushq    %rbp                /* enter    $0 */
 	movq     %rsp, %rbp
-	subq     $80, %rsp
-	movl     $11, -56(%rbp)      /* mov_l    vr13, $11 */
-	movl     -56(%rbp), %r10d    /* mov_l    vr10, vr13 */
-	movl     %r10d, -80(%rbp)
-	movl     $1, -48(%rbp)       /* mov_l    vr14, $1 */
-	movl     -48(%rbp), %r11d    /* mov_l    vr11, vr14 */
-	movl     %r11d, -72(%rbp)
-	movl     $0, -40(%rbp)       /* mov_l    vr15, $0 */
-	movl     -40(%rbp), %r10d    /* mov_l    vr12, vr15 */
-	movl     %r10d, -64(%rbp)
+	subq     $32, %rsp
+	pushq    %rbx
+	pushq    %r12
+	pushq    %r13
+	subq     $8, %rsp
+	movl     $11, %r13d          /* mov_l    vr10<%r13>, $11 */
+	movl     $1, %ebx            /* mov_l    vr11<%rbx>, $1 */
+	movl     $0, %r12d           /* mov_l    vr12<%r12>, $0 */
 	jmp      .L1                 /* jmp      .L1 */
 .L0:
-	movl     -64(%rbp), %r11d    /* add_l    vr16, vr12, vr11 */
-	addl     -72(%rbp), %r11d
-	movl     %r11d, -32(%rbp)
-	movl     -32(%rbp), %r10d    /* mov_l    vr12, vr16 */
-	movl     %r10d, -64(%rbp)
-	movl     $1, -24(%rbp)       /* mov_l    vr17, $1 */
-	movl     -72(%rbp), %r11d    /* add_l    vr18, vr11, vr17 */
-	addl     -24(%rbp), %r11d
-	movl     %r11d, -16(%rbp)
-	movl     -16(%rbp), %r10d    /* mov_l    vr11, vr18 */
-	movl     %r10d, -72(%rbp)
+	movl     %r12d, %r10d        /* add_l    vr16<%r9>, vr12<%r12>, vr11<%rbx> */
+	addl     %ebx, %r10d
+	movl     %r10d, %r9d
+	movl     %r9d, %r12d         /* mov_l    vr12<%r12>, vr16<%r9> */
+	movl     %ebx, %r11d         /* add_l    vr18<%r9>, vr11<%rbx>, $1 */
+	addl     $1, %r11d
+	movl     %r11d, %r9d
+	movl     %r9d, %ebx          /* mov_l    vr11<%rbx>, vr18<%r9> */
 .L1:
-	movl     -72(%rbp), %r11d    /* cmplte_l vr19, vr11, vr10 */
-	cmpl     -80(%rbp), %r11d
-	setle    %r11b
-	movzbl   %r11b, %r11d
-	movl     %r11d, -8(%rbp)
-	cmpl     $0, -8(%rbp)        /* cjmp_t   vr19, .L0 */
+	cmpl     %r13d, %ebx         /* cmplte_l vr19<%r9>, vr11<%rbx>, vr10<%r13> */
+	setle    %r10b
+	movzbl   %r10b, %r11d
+	movl     %r11d, %r9d
+	cmpl     $0, %r9d            /* cjmp_t   vr19<%r9>, .L0 */
 	jne      .L0
-	movl     -64(%rbp), %eax     /* mov_l    vr0, vr12 */
+	movl     %r12d, %eax         /* mov_l    vr0, vr12<%r12> */
 	jmp      .Lmain_return       /* jmp      .Lmain_return */
 .Lmain_return:
-	addq     $80, %rsp           /* leave    $0 */
+	addq     $8, %rsp            /* leave    $0 */
+	popq     %r13
+	popq     %r12
+	popq     %rbx
+	addq     $32, %rsp
 	popq     %rbp
 	ret                          /* ret       */

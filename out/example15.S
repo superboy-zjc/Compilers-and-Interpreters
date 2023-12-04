@@ -6,21 +6,20 @@
 main:
 	pushq    %rbp                /* enter    $0 */
 	movq     %rsp, %rbp
-	subq     $48, %rsp
+	subq     $16, %rsp
+	pushq    %rbx
+	subq     $8, %rsp
 	call     read_i32            /* call     read_i32 */
-	movl     %eax, -24(%rbp)     /* mov_l    vr12, vr0 */
-	movl     -24(%rbp), %r10d    /* mov_l    vr10, vr12 */
-	movl     %r10d, -40(%rbp)
+	movl     %eax, %ebx          /* mov_l    vr10<%rbx>, vr0 */
 	call     read_i32            /* call     read_i32 */
-	movl     %eax, -16(%rbp)     /* mov_l    vr13, vr0 */
-	movl     -16(%rbp), %r11d    /* mov_l    vr11, vr13 */
-	movl     %r11d, -32(%rbp)
-	movl     -40(%rbp), %r10d    /* add_l    vr14, vr10, vr11 */
-	addl     -32(%rbp), %r10d
-	movl     %r10d, -8(%rbp)
-	movl     -8(%rbp), %eax      /* mov_l    vr0, vr14 */
+	movl     %ebx, %r10d         /* add_l    vr14<%r9>, vr10<%rbx>, vr0 */
+	addl     %eax, %r10d
+	movl     %r10d, %r9d
+	movl     %r9d, %eax          /* mov_l    vr0, vr14<%r9> */
 	jmp      .Lmain_return       /* jmp      .Lmain_return */
 .Lmain_return:
-	addq     $48, %rsp           /* leave    $0 */
+	addq     $8, %rsp            /* leave    $0 */
+	popq     %rbx
+	addq     $16, %rsp
 	popq     %rbp
 	ret                          /* ret       */

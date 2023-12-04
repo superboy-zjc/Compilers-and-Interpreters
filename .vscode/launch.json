@@ -10,7 +10,7 @@
                 "-o",
                 // "-h",
                 // "~/fall2023-tests/assign03/input/example03.c"
-                "~/fall2023-tests/assign04/input/example28.c"
+                "~/fall2023-tests/assign05/input/example32.c"
                 // "input/assign05.c"
             ],
             "stopAtEntry": false,
