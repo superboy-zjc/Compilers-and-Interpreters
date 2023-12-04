@@ -7,11 +7,11 @@
             "request": "launch",
             "program": "${workspaceFolder}/nearly_cc",
             "args": [
-                "-h",
                 "-o",
+                // "-h",
                 // "~/fall2023-tests/assign03/input/example03.c"
-                "~/fall2023-tests/assign04/input/example25.c"
-                //"input/test2.c"
+                "~/fall2023-tests/assign04/input/example28.c"
+                // "input/assign05.c"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

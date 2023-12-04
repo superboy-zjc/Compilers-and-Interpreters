@@ -267,6 +267,12 @@ long Operand::get_scale() const
   return m_imm_ival;
 }
 
+MachineReg Operand::get_machine_reg() const
+{
+  assert(!oprops(m_kind).is_non_reg());
+  return m_machine_reg;
+}
+
 void Operand::set_base_reg(int regnum)
 {
   assert(!oprops(m_kind).is_non_reg());
@@ -289,6 +295,12 @@ void Operand::set_offset(long offset)
 {
   assert(oprops(m_kind).has_offset());
   m_imm_ival = offset;
+}
+
+void Operand::set_machine_reg(MachineReg regnum)
+{
+  assert(!oprops(m_kind).is_non_reg());
+  m_machine_reg = regnum;
 }
 
 Operand Operand::to_memref() const

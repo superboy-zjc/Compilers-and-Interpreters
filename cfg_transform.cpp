@@ -633,3 +633,421 @@ DeadStoreElimination::transform_basic_block(const InstructionSequence *orig_bb)
 
   return result_iseq;
 }
+
+////////////////////////////////////////////////////////////////////////
+// Local Register Allocator Implementation                            //
+////////////////////////////////////////////////////////////////////////
+LocalRegisterAllocation::LocalRegisterAllocation(const std::shared_ptr<ControlFlowGraph> &cfg, Node *func_ast)
+    : ControlFlowGraphTransform(cfg), m_live_vregs(cfg), m_func_ast(func_ast)
+{
+  m_live_vregs.execute();
+  // udpate up the allocated registers (since we have to allocat machine regsiters for all temporary registers
+  // the allocated registers only be local variables)
+  func_ast->set_cur_vreg(func_ast->get_vreg_no_temp());
+  visit(func_ast);
+}
+
+LocalRegisterAllocation::~LocalRegisterAllocation()
+{
+}
+
+std::shared_ptr<InstructionSequence>
+LocalRegisterAllocation::transform_basic_block(const InstructionSequence *orig_bb)
+{
+  // LiveVregs needs a pointer to a BasicBlock object to get a dataflow
+  // fact for that basic block
+  // const BasicBlock *orig_bb_as_basic_block =
+  //     static_cast<const BasicBlock *>(orig_bb);
+
+  std::shared_ptr<InstructionSequence> result_iseq(new InstructionSequence());
+
+  prepare_register_pool(orig_bb);
+
+  for (auto i = orig_bb->cbegin(); i != orig_bb->cend(); ++i)
+  {
+    Instruction *orig_ins = *i;
+    std::vector<Operand> opd_list;
+
+    for (unsigned int i = 0; i < orig_ins->get_num_operands(); i++)
+    {
+      Operand cur_opd = orig_ins->get_operand(i);
+      // allocate mreg for vreg
+      if (is_eager_to_be_allocated(cur_opd, orig_bb))
+      {
+        allocate_machine_reg(cur_opd, orig_bb, orig_ins, result_iseq);
+      }
+      // assign mreg on the operand
+      if (is_eager_to_be_assigned(cur_opd, orig_bb))
+      {
+        cur_opd = assign_machine_reg(cur_opd, orig_bb);
+      }
+      // live analysis on the next instruction, release dead mreg
+      refresh_mreg_pool(cur_opd, orig_bb, orig_ins);
+
+      // allocate local variables
+      if (is_local_variable_vreg(cur_opd))
+      {
+        cur_opd = assign_mreg_by_rank(cur_opd);
+      }
+      opd_list.push_back(cur_opd);
+    }
+
+    int opcode = orig_ins->get_opcode();
+    switch (orig_ins->get_num_operands())
+    {
+    case 0:
+      result_iseq->append(orig_ins->duplicate());
+      break;
+    case 1:
+      result_iseq->append(new Instruction(opcode, opd_list[0]));
+      break;
+    case 2:
+      result_iseq->append(new Instruction(opcode, opd_list[0], opd_list[1]));
+      break;
+    case 3:
+      result_iseq->append(new Instruction(opcode, opd_list[0], opd_list[1], opd_list[2]));
+      break;
+    default:
+      RuntimeError::raise("err!\n");
+      break;
+    }
+  }
+  reset_local_state();
+  return result_iseq;
+}
+
+void LocalRegisterAllocation::prepare_register_pool(const InstructionSequence *orig_bb)
+{
+  std::vector<MachineReg> machine_reg_pool = {MREG_RDI, MREG_RSI, MREG_RDX, MREG_RCX, MREG_R8, MREG_R9};
+  std::set<int> arg_vreg_set;
+  for (auto i = orig_bb->cbegin(); i != orig_bb->cend(); ++i)
+  {
+    Instruction *orig_ins = *i;
+    if (HighLevel::is_def(orig_ins) && orig_ins->get_operand(0).get_base_reg() >= 1 && orig_ins->get_operand(0).get_base_reg() <= 9)
+    {
+      arg_vreg_set.insert(orig_ins->get_operand(0).get_base_reg());
+    }
+  }
+  for (int i = arg_vreg_set.size(); i <= 5; i++)
+  {
+    m_register_pool.push(machine_reg_pool[i]);
+  }
+}
+bool LocalRegisterAllocation::is_local_variable_vreg(const Operand &opd)
+{
+  if (opd.get_kind() != Operand::VREG && opd.get_kind() != Operand::VREG_MEM)
+    return false;
+  int base = m_func_ast->get_last_allocated_virtual_registers_no_temp();
+  if (opd.get_base_reg() < 10 || opd.get_base_reg() > base)
+    return false;
+
+  return true;
+}
+bool LocalRegisterAllocation::is_assignable_vreg(const Operand &opd, const InstructionSequence *orig_bb)
+{
+  // for liveness analysis
+  const BasicBlock *orig_bb_as_basic_block =
+      static_cast<const BasicBlock *>(orig_bb);
+  LiveVregs::FactType live_end =
+      m_live_vregs.get_fact_at_end_of_block(orig_bb_as_basic_block);
+
+  if (opd.get_kind() != Operand::VREG && opd.get_kind() != Operand::VREG_MEM)
+    return false;
+  // if live at the end of the block, unassignable
+  if (live_end.test(opd.get_base_reg()))
+    return false;
+  // if arg registers or local variable registers, unassignable
+  if ((unsigned)opd.get_base_reg() <= m_func_ast->get_last_allocated_virtual_registers_no_temp())
+    return false;
+  return true;
+}
+
+bool LocalRegisterAllocation::is_eager_to_be_assigned(const Operand &opd, const InstructionSequence *orig_bb)
+{
+  if (!is_assignable_vreg(opd, orig_bb) || opd.get_machine_reg() != MREG_END)
+  {
+    return false;
+  }
+  return true;
+}
+bool LocalRegisterAllocation::is_eager_to_be_allocated(const Operand &opd, const InstructionSequence *orig_bb)
+{
+  if (!is_assignable_vreg(opd, orig_bb))
+    return false;
+
+  // if
+  MachineReg mreg = find_mreg_by_vreg(opd.get_base_reg());
+  if (mreg != MREG_END)
+    return false;
+
+  return true;
+}
+Operand LocalRegisterAllocation::assign_mreg_by_rank(Operand opd)
+{
+  std::vector<MachineReg> caller_saved = {MREG_RBX, MREG_R12, MREG_R13, MREG_R14, MREG_R15};
+  int base = opd.get_base_reg();
+  int count = 0;
+  for (const auto &element : m_local_rank)
+  {
+    if (count >= 4)
+    {
+      break;
+    }
+    if (element.first == base)
+    {
+      opd.set_machine_reg(caller_saved[count]);
+      m_func_ast->insert_caller_save_list(caller_saved[count]);
+    }
+    ++count;
+  }
+  return opd;
+}
+Operand LocalRegisterAllocation::assign_machine_reg(Operand opd, const InstructionSequence *orig_bb)
+{
+  if (!is_assignable_vreg(opd, orig_bb))
+  {
+    RuntimeError::raise("Assign machine register to a wrong operand!");
+  }
+
+  MachineReg mreg = find_mreg_by_vreg(opd.get_base_reg());
+  if (mreg == MREG_END)
+  {
+    RuntimeError::raise("There is no allocated register to assign!\n");
+  }
+  opd.set_machine_reg(mreg);
+
+  return opd;
+}
+
+void LocalRegisterAllocation::allocate_machine_reg(Operand opd, const InstructionSequence *orig_bb, Instruction *ins, std::shared_ptr<InstructionSequence> &main_seq)
+{
+  if (!is_assignable_vreg(opd, orig_bb))
+  {
+    RuntimeError::raise("Allocate machine register to a wrong operand!");
+  }
+  int base_vr_n = opd.get_base_reg();
+  // if (base_vr_n == 19)
+  // {
+  //   printf("debug\n");
+  // }
+  MachineReg machine_reg = emit_machine_reg_from_pool();
+  // if no available machine registers
+  if (machine_reg == MREG_END)
+  {
+    machine_reg = sacrifice_a_temp_vreg(orig_bb, ins, main_seq);
+    // RuntimeError::raise("Used up!\n");
+  }
+
+  m_vreg_to_mreg[base_vr_n] = machine_reg;
+}
+
+MachineReg LocalRegisterAllocation::emit_machine_reg_from_pool()
+{
+  if (m_register_pool.empty())
+  {
+    return MREG_END;
+  }
+  MachineReg aval_reg = m_register_pool.top();
+  m_register_pool.pop();
+  return aval_reg;
+}
+
+void LocalRegisterAllocation::refresh_mreg_pool(Operand opd, const InstructionSequence *orig_bb, Instruction *ins)
+{
+  if (!is_assignable_vreg(opd, orig_bb))
+    return;
+  // for liveness analysis
+  const BasicBlock *orig_bb_as_basic_block =
+      static_cast<const BasicBlock *>(orig_bb);
+  LiveVregs::FactType live_after =
+      m_live_vregs.get_fact_after_instruction(orig_bb_as_basic_block, ins);
+
+  // if not dead at the next instruction, just return
+  if (live_after.test(opd.get_base_reg()))
+    return;
+
+  MachineReg mreg = find_mreg_by_vreg(opd.get_base_reg());
+  if (mreg == MREG_END)
+  {
+    RuntimeError::raise("Virtual register has not been allocated to a mreg!\n");
+  }
+  // recover the available mreg in the pool
+  m_register_pool.push(mreg);
+  // release the allocated machine register
+  m_vreg_to_mreg.erase(opd.get_base_reg());
+}
+MachineReg LocalRegisterAllocation::sacrifice_a_temp_vreg(const InstructionSequence *orig_bb, Instruction *ins, std::shared_ptr<InstructionSequence> &main_seq)
+{
+  // LiveVregs needs a pointer to a BasicBlock object to get a dataflow
+  // fact for that basic block
+  const BasicBlock *orig_bb_as_basic_block =
+      static_cast<const BasicBlock *>(orig_bb);
+
+  if (m_vreg_to_mreg.empty())
+  {
+    RuntimeError::raise("No machine register available!!\n");
+  }
+
+  std::shared_ptr<InstructionSequence> result_iseq(new InstructionSequence());
+  std::
+      map<VirtualReg, UseDepth>
+          depth_map;
+  // Load all the ready to sacrifice registers into a map
+  for (const auto &pair : m_vreg_to_mreg)
+  {
+    const VirtualReg &vreg = pair.first;
+    depth_map[vreg] = UseDepth();
+  }
+
+  // start from the current instruction
+  auto starter = std::find(orig_bb->cbegin(), orig_bb->cend(), ins);
+  if (starter == orig_bb->cend())
+  {
+    RuntimeError::raise("Unexpected!!\n");
+  }
+  for (auto i = starter; i != orig_bb->cend(); ++i)
+  {
+    Instruction *orig_ins = *i;
+    LiveVregs::FactType live_after =
+        m_live_vregs.get_fact_after_instruction(orig_bb_as_basic_block, orig_ins);
+    int depth = 0;
+    for (unsigned i = 0; i < orig_ins->get_num_operands(); i++)
+    {
+      Operand opd = orig_ins->get_operand(i);
+      if (is_assignable_vreg(opd, orig_bb) && is_vreg_allocated(opd.get_base_reg()))
+      {
+        VirtualReg vreg = opd.get_base_reg();
+        if (depth_map[vreg].alive)
+          depth_map[vreg].depth = depth;
+        if (!live_after.test(vreg))
+          depth_map[vreg].alive = false;
+      }
+    }
+
+    depth++;
+    // if (preserve_instruction)
+    //   result_iseq->append(orig_ins->duplicate());
+  }
+
+  // pick up a farthest one
+  VirtualReg pathetic_vreg;
+  unsigned max_depth = 0;
+  for (const auto &pair : depth_map)
+  {
+    if (pair.second.depth >= max_depth)
+    {
+      max_depth = pair.second.depth;
+      pathetic_vreg = pair.first;
+    }
+  }
+
+  if (max_depth == 0)
+  {
+    RuntimeError::raise("No machine register can be released!!\n");
+  }
+
+  // emit a spill location, as well as maintain the spill location list,  for the pathetic virtual register
+  int spill_offset = emit_spill_offset(pathetic_vreg);
+  main_seq->append(new Instruction(HighLevelOpcode::HINS_spill_q, Operand(Operand::VREG, pathetic_vreg), Operand(Operand::IMM_IVAL, spill_offset)));
+
+  // steal machine register from the pathetic virtual register
+  MachineReg stolen_mreg = m_vreg_to_mreg[pathetic_vreg];
+  m_vreg_to_mreg.erase(pathetic_vreg);
+
+  return stolen_mreg;
+}
+
+int LocalRegisterAllocation::emit_spill_offset(const VirtualReg &pathetic_vreg)
+{
+  int offset = 0;
+  // no available spill location
+  if (m_vreg_to_spill_loc.size() >= m_spill_location_pool.size())
+  {
+    // new offset = size * 8
+    offset = 8 * m_spill_location_pool.size();
+    SpillLocation spill_loc(offset, true);
+    m_spill_location_pool.push_back(spill_loc);
+    // mapping location with vreg
+    m_vreg_to_spill_loc[pathetic_vreg] = spill_loc;
+  }
+  // have available spill location
+  else
+  {
+    for (auto &loc : m_spill_location_pool)
+    {
+      if (!loc.is_used)
+      {
+        loc.is_used = true;
+        offset = loc.loc;
+        // mapping location with vreg
+        m_vreg_to_spill_loc[pathetic_vreg] = loc;
+      }
+    }
+  }
+  return offset;
+}
+
+void LocalRegisterAllocation::visit_variable_ref(Node *n)
+{
+  Operand opd = n->get_operand();
+  if (opd.get_kind() == Operand::VREG)
+  {
+    int base = opd.get_base_reg();
+
+    auto it = std::find_if(m_local_rank.begin(), m_local_rank.end(),
+                           [base](const std::pair<VirtualReg, Rank> &element)
+                           {
+                             return element.first == base;
+                           });
+    if (it != m_local_rank.end())
+    {
+      it->second = it->second + m_cur_rank;
+    }
+    else
+    {
+      m_local_rank.push_back(std::make_pair(base, m_cur_rank));
+    }
+    std::sort(m_local_rank.begin(), m_local_rank.end(),
+              [](const auto &a, const auto &b)
+              { return a.second > b.second; });
+  }
+}
+// void LocalRegisterAllocation::prepare_un_assignable_vreg_pool(const InstructionSequence *orig_bb)
+// {
+//   // LiveVregs needs a pointer to a BasicBlock object to get a dataflow
+//   // fact for that basic block
+//   const BasicBlock *orig_bb_as_basic_block =
+//       static_cast<const BasicBlock *>(orig_bb);
+
+//   // for (auto i = orig_bb->cbegin(); i != orig_bb->cend(); ++i)
+//   // {
+//   //   Instruction *orig_ins = *i;
+//   //   if (HighLevel::is_def(orig_ins))
+//   //   {
+//   Operand dest = orig_ins->get_operand(0);
+
+//   LiveVregs::FactType live_end =
+//       m_live_vregs.get_fact_at_end_of_block(orig_bb_as_basic_block);
+
+//   if (!live_end.test(dest.get_base_reg()) && dest.get_base_reg() > 9)
+//     // destination register is dead immediately after this instruction,
+//     // so it can be eliminated
+//     preserve_instruction = false;
+
+//   // tease duplicated mov out
+//   if (match_opcode(orig_ins->get_opcode(), HINS_mov_b))
+//   {
+//     Operand src = orig_ins->get_operand(1);
+//     if (dest.get_kind() == Operand::VREG && src.get_kind() == Operand::VREG)
+//     {
+//       if (dest.get_base_reg() == src.get_base_reg())
+//         // preserve_instruction = false;
+//         ;
+//     }
+//   }
+//   //   }
+
+//   //   if (preserve_instruction)
+//   //     result_iseq->append(orig_ins->duplicate());
+//   // }
+// }

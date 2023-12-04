@@ -297,8 +297,20 @@ void HighLevelCodegen::visit_binary_expression(Node *n)
   Node *opd2_node = n->get_kid(2);
   std::shared_ptr<Type> opd1_type = opd1_node->get_type();
   std::shared_ptr<Type> opd2_type = opd2_node->get_type();
-  visit(opd1_node);
-  visit(opd2_node);
+
+  // assign05
+  // call first, to avoid call structing a basic block truncation for a assignment operation
+  if (opd2_node->get_tag() == AST_FUNCTION_CALL_EXPRESSION)
+  {
+    visit(opd2_node);
+    visit(opd1_node);
+  }
+  else
+  {
+    visit(opd1_node);
+    visit(opd2_node);
+  }
+
   Operand opd1 = opd1_node->get_operand();
   Operand opd2 = opd2_node->get_operand();
 

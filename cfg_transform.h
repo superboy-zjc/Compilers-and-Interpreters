@@ -6,8 +6,12 @@
 #include <set>
 #include "exceptions.h"
 #include "highlevel.h"
+#include "lowlevel.h"
 #include "live_vregs.h"
 #include <list>
+#include <stack>
+#include "node.h"
+#include "ast_visitor.h"
 
 class ControlFlowGraphTransform
 {
@@ -224,6 +228,107 @@ public:
 
   virtual std::shared_ptr<InstructionSequence>
   transform_basic_block(const InstructionSequence *orig_bb);
+};
+
+// LocalRegisterAllocation
+typedef int VirtualReg;
+typedef int Rank;
+// typedef int Location;
+// typedef int MachineReg;
+struct SpillLocation
+{
+  int loc;
+  bool is_used;
+  SpillLocation() : loc(-1), is_used(false) {}
+  SpillLocation(int loc, bool is_used) : loc(loc), is_used(is_used) {}
+};
+
+struct UseDepth
+{
+  unsigned depth = 0;
+  bool alive = true;
+
+  UseDepth() : depth(0), alive(true) {}
+};
+
+class LocalRegisterAllocation : public ControlFlowGraphTransform, public ASTVisitor
+{
+private:
+  LiveVregs m_live_vregs;
+  Node *m_func_ast;
+  std::vector<std::pair<VirtualReg, Rank>> m_local_rank;
+  unsigned long m_cur_rank = 1;
+
+  std::stack<MachineReg> m_register_pool;
+  std::map<VirtualReg, MachineReg> m_vreg_to_mreg;
+  std::vector<SpillLocation> m_spill_location_pool;
+  std::map<VirtualReg, SpillLocation> m_vreg_to_spill_loc;
+
+  void reset_local_state()
+  {
+    std::stack<MachineReg>().swap(m_register_pool);
+    m_vreg_to_mreg.clear();
+    // m_spill_location_pool.clear();
+    m_vreg_to_spill_loc.clear();
+  };
+
+  void prepare_register_pool(const InstructionSequence *orig_bb);
+  // void prepare_un_assignable_vreg_pool(const InstructionSequence *orig_bb);
+  bool is_assignable_vreg(const Operand &opd, const InstructionSequence *orig_bb);
+  bool is_eager_to_be_assigned(const Operand &opd, const InstructionSequence *orig_bb);
+  bool is_eager_to_be_allocated(const Operand &opd, const InstructionSequence *orig_bb);
+  bool is_local_variable_vreg(const Operand &opd);
+  Operand assign_machine_reg(Operand opd, const InstructionSequence *orig_bb);
+  Operand assign_mreg_by_rank(Operand opd);
+  void allocate_machine_reg(Operand opd, const InstructionSequence *orig_bb, Instruction *ins, std::shared_ptr<InstructionSequence> &main_seq);
+  void refresh_mreg_pool(Operand opd, const InstructionSequence *orig_bb, Instruction *ins);
+  MachineReg sacrifice_a_temp_vreg(const InstructionSequence *orig_bb, Instruction *ins, std::shared_ptr<InstructionSequence> &main_seq);
+  MachineReg emit_machine_reg_from_pool();
+  int emit_spill_offset(const VirtualReg &pathetic_vreg);
+
+  bool is_vreg_allocated(VirtualReg vreg)
+  {
+    if (m_vreg_to_mreg.find(vreg) == m_vreg_to_mreg.end())
+      return false;
+    return true;
+  }
+
+  MachineReg find_mreg_by_vreg(int vreg_n)
+  {
+    // if already allocated
+    auto it = m_vreg_to_mreg.find(vreg_n);
+    if (it != m_vreg_to_mreg.end())
+      return it->second;
+    // if not found
+    return MREG_END;
+  }
+
+public:
+  LocalRegisterAllocation(const std::shared_ptr<ControlFlowGraph> &cfg, Node *func_ast);
+  ~LocalRegisterAllocation();
+
+  virtual std::shared_ptr<InstructionSequence>
+  transform_basic_block(const InstructionSequence *orig_bb);
+
+  // virtual void visit_function_definition(Node *n);
+  // virtual void visit_statement_list(Node *n);
+  // virtual void visit_expression_statement(Node *n);
+  // virtual void visit_return_statement(Node *n);
+  // virtual void visit_return_expression_statement(Node *n);
+  // virtual void visit_while_statement(Node *n);
+  // virtual void visit_do_while_statement(Node *n);
+  // virtual void visit_for_statement(Node *n);
+  // virtual void visit_if_statement(Node *n);
+  // virtual void visit_if_else_statement(Node *n);
+  // virtual void visit_binary_expression(Node *n);
+  // virtual void visit_unary_expression(Node *n);
+  // virtual void visit_function_call_expression(Node *n);
+  // virtual void visit_field_ref_expression(Node *n);
+  // virtual void visit_indirect_field_ref_expression(Node *n);
+  // virtual void visit_array_element_ref_expression(Node *n);
+  virtual void visit_variable_ref(Node *n);
+  // virtual void visit_literal_value(Node *n);
+  // virtual void visit_implicit_conversion(Node *n);
 };
 
 #endif // CFG_TRANSFORM_H

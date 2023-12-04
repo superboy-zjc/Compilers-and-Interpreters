@@ -2,6 +2,7 @@
 #define OPERAND_H
 
 #include <string>
+#include "lowlevel.h"
 
 // Operand of an Instruction.
 // Can be used for both high-level linear IR code and low-level
@@ -43,6 +44,8 @@ private:
   int m_basereg, m_index_reg;
   long m_imm_ival; // also used for offset and scale
   std::string m_label;
+  // assign05
+  MachineReg m_machine_reg = MREG_END;
 
 public:
   Operand(Kind kind = NONE);
@@ -110,12 +113,16 @@ public:
   long get_imm_ival() const;
   long get_offset() const;
   long get_scale() const;
+  // assign05
+  MachineReg get_machine_reg() const;
 
   // setters
   void set_base_reg(int regnum);
   void set_index_reg(int regnum);
   void set_imm_ival(long ival);
   void set_offset(long offset);
+  // assign05
+  void set_machine_reg(MachineReg regnum);
 
   Operand to_memref() const;
   Operand memref_to() const;

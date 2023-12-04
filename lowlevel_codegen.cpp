@@ -108,17 +108,21 @@ std::shared_ptr<InstructionSequence> LowLevelCodeGen::generate(const std::shared
     HighLevelControlFlowGraphBuilder hl_cfg_builder(cur_hl_iseq);
     std::shared_ptr<ControlFlowGraph> cfg = hl_cfg_builder.build();
 
-    // Do local optimizations
-    // (Notice!!! You should sync with the code in the context.cpp!!!)
-    // Do LVN optimization muliple times
-    for (int opt_time = 0; opt_time < 5; opt_time++)
-    {
-      LVNOptimizationHighLevel hl_opts(cfg);
-      cfg = hl_opts.transform_cfg();
-    }
-    // dead store elimination optimization
-    DeadStoreElimination dse_opts(cfg);
-    cfg = dse_opts.transform_cfg();
+    // // Do local optimizations
+    // // (Notice!!! You should sync with the code in the context.cpp!!!)
+    // // Do LVN optimization muliple times
+    // for (int opt_time = 0; opt_time < 5; opt_time++)
+    // {
+    //   LVNOptimizationHighLevel hl_opts(cfg);
+    //   cfg = hl_opts.transform_cfg();
+    // }
+    // // dead store elimination optimization
+    // DeadStoreElimination dse_opts(cfg);
+    // cfg = dse_opts.transform_cfg();
+
+    // // Local Register Allocation
+    // LocalRegisterAllocation lra_opts(cfg, funcdef_ast);
+    // cfg = lra_opts.transform_cfg();
 
     // Convert thetransformed high-level CFG back to an InstructionSequence
     cur_hl_iseq = cfg->create_instruction_sequence();
@@ -256,10 +260,19 @@ void LowLevelCodeGen::translate_instruction(Instruction *hl_ins, const std::shar
     if (m_total_memory_storage > 0)
       ll_iseq->append(new Instruction(MINS_SUBQ, Operand(Operand::IMM_IVAL, m_total_memory_storage), Operand(Operand::MREG64, MREG_RSP)));
 
-    // save callee-saved registers (if any)
-    // TODO: if you allocated callee-saved registers as storage for local variables,
+    // if you allocated callee-saved registers as storage for local variables,
     //       emit pushq instructions to save their original values
-    // save_callee_saved_registers();
+    // save callee-saved registers (if any)
+    const std::set<MachineReg> caller_saved = ll_iseq->get_funcdef_ast()->get_caller_save_list();
+    for (const auto &element : caller_saved)
+    {
+      ll_iseq->append(new Instruction(MINS_PUSHQ, Operand(Operand::MREG64, element)));
+    }
+    // aligned with 16 bytes
+    if ((caller_saved.size() % 2) == 1)
+    {
+      ll_iseq->append(new Instruction(MINS_SUBQ, Operand(Operand::IMM_IVAL, 8), Operand(Operand::MREG64, MREG_RSP)));
+    }
 
     add_comment(hl_ins, ll_iseq, first_instruct_idx);
     return;
@@ -270,8 +283,19 @@ void LowLevelCodeGen::translate_instruction(Instruction *hl_ins, const std::shar
     // Function epilogue: deallocate local storage area and restore original value
     // of %rbp
 
-    // TODO: if you allocated callee-saved registers as storage for local variables,
+    // if you allocated callee-saved registers as storage for local variables,
     //       emit popq instructions to save their original values
+    const std::set<MachineReg> caller_saved = ll_iseq->get_funcdef_ast()->get_caller_save_list();
+    // aligned with 16 bytes
+    if ((caller_saved.size() % 2) == 1)
+    {
+      ll_iseq->append(new Instruction(MINS_ADDQ, Operand(Operand::IMM_IVAL, 8), Operand(Operand::MREG64, MREG_RSP)));
+    }
+    for (auto it = caller_saved.rbegin(); it != caller_saved.rend(); ++it)
+    {
+      const MachineReg &element = *it;
+      ll_iseq->append(new Instruction(MINS_POPQ, Operand(Operand::MREG64, element)));
+    }
 
     if (m_total_memory_storage > 0)
       ll_iseq->append(new Instruction(MINS_ADDQ, Operand(Operand::IMM_IVAL, m_total_memory_storage), Operand(Operand::MREG64, MREG_RSP)));
@@ -469,7 +493,7 @@ void LowLevelCodeGen::translate_instruction(Instruction *hl_ins, const std::shar
     int dst_size = highlevel_opcode_get_dest_operand_size(hl_opcode);
 
     Operand src_operand = get_ll_operand(hl_ins->get_operand(1), src_size, ll_iseq);
-    Operand dest_operand = get_ll_operand(hl_ins->get_operand(0), src_size, ll_iseq);
+    Operand dest_operand = get_ll_operand(hl_ins->get_operand(0), dst_size, ll_iseq);
     // movl X(%rbp), %r10X
     src_operand = emit_mov_to_temp(src_operand, src_size, ll_iseq);
     // movslq %r10X, %r10
@@ -519,6 +543,7 @@ void LowLevelCodeGen::translate_instruction(Instruction *hl_ins, const std::shar
     add_comment(hl_ins, ll_iseq, first_instruct_idx);
     return;
   }
+  // if the translation doesn't cover certain opcode, then just NOP it
   print_uncompleted(hl_ins, ll_iseq);
   //  RuntimeError::raise("high level opcode %d not handled", int(hl_opcode));
 }
@@ -530,7 +555,9 @@ unsigned LowLevelCodeGen::init_storage_base(Node *funcdef_ast)
 {
   struct storage_info storage_base;
   storage_base.allocated_memory = funcdef_ast->get_memory_storage_size();
+  // assign05
   storage_base.allocated_vr_num = funcdef_ast->get_last_allocated_virtual_registers() - 10 + 1;
+  // storage_base.allocated_vr_num = funcdef_ast->get_last_allocated_virtual_registers_no_temp() - 10 + 1;
 
   if ((storage_base.allocated_memory) % 8 != 0)
     storage_base.allocated_memory += (8 - (storage_base.allocated_memory % 8));
@@ -583,12 +610,18 @@ Operand LowLevelCodeGen::get_ll_operand(Operand hl_operand, int size, const std:
 Operand LowLevelCodeGen::operand_hl_ll(Operand hl_opd, int size)
 {
   unsigned vr_idx = hl_opd.get_base_reg();
+  // assign05
+  MachineReg mreg = hl_opd.get_machine_reg();
   Operand ll_opd;
   if (hl_opd.get_kind() == Operand::VREG)
   {
-    if (vr_idx >= 10)
+    if (vr_idx >= 10 && mreg == MREG_END)
     {
       ll_opd = Operand(Operand::MREG64_MEM_OFF, MREG_RBP, get_offset(hl_opd));
+    }
+    else if (vr_idx >= 10 && mreg != MREG_END)
+    {
+      ll_opd = Operand(select_mreg_kind(size), mreg);
     }
     switch (vr_idx)
     {

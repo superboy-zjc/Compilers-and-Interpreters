@@ -73,6 +73,8 @@ void LocalStorageAllocation::visit_function_definition(Node *n)
   unsigned size = m_storage_calc.get_size();
   n->set_memory_storage_size(size);
   n->set_cur_vreg(get_cur_vreg());
+  // assign05, save virtual register status before assigning temporary vrs
+  n->set_vreg_no_temp(get_cur_vreg());
   // recover  the virtual registers after exiting into a new scope
   set_cur_vreg(saved_vregs);
   // recover the storage status

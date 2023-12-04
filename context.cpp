@@ -204,6 +204,9 @@ void Context::highlevel_codegen(ModuleCollector *module_collector, bool optimize
           DeadStoreElimination dse_opts(cfg);
           cfg = dse_opts.transform_cfg();
         }
+        // Local Register Allocation
+        LocalRegisterAllocation lra_opts(cfg, child);
+        cfg = lra_opts.transform_cfg();
 
         // Convert thetransformed high-level CFG back to an InstructionSequence
         cur_hl_iseq = cfg->create_instruction_sequence();

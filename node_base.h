@@ -26,6 +26,7 @@
 #include "symtab.h"
 #include "literal_value.h"
 #include "operand.h"
+#include <set>
 
 // The Node class will inherit from this type, so you can use it
 // to define any attributes and methods that Node objects should have
@@ -56,6 +57,10 @@ private:
   struct vreg m_vregs;
   LiteralValue m_value;
   Operand m_operand;
+
+  // assign05
+  struct vreg m_vregs_no_temp;
+  std::set<MachineReg> m_caller_saved;
 
 public:
   NodeBase();
@@ -88,14 +93,34 @@ public:
   {
     return m_vregs;
   };
+
   void set_cur_vreg(struct vreg vregs)
   {
     m_vregs.m_arg_vreg = vregs.m_arg_vreg;
     m_vregs.m_local_vreg = vregs.m_local_vreg;
   };
-
+  // assign05
+  void set_vreg_no_temp(struct vreg vregs)
+  {
+    m_vregs_no_temp.m_arg_vreg = vregs.m_arg_vreg;
+    m_vregs_no_temp.m_local_vreg = vregs.m_local_vreg;
+  };
+  // assign05
+  struct vreg get_vreg_no_temp() const
+  {
+    return m_vregs_no_temp;
+  };
+  void insert_caller_save_list(MachineReg mreg)
+  {
+    m_caller_saved.insert(mreg);
+  }
+  const std::set<MachineReg> &get_caller_save_list()
+  {
+    return m_caller_saved;
+  }
   // assign 04
-  void set_literal_value(LiteralValue value)
+  void
+  set_literal_value(LiteralValue value)
   {
     m_value = value;
   };
@@ -120,6 +145,12 @@ public:
   unsigned int get_last_allocated_virtual_registers()
   {
     return m_vregs.m_local_vreg - 1;
+  }
+  // assign05
+  unsigned int get_last_allocated_virtual_registers_no_temp()
+  {
+    // printf("no temp vregs: %d\n", m_vregs_no_temp.m_local_vreg - 1);
+    return m_vregs_no_temp.m_local_vreg - 1;
   }
   void set_string_constant_label(std::string label_name);
 };
