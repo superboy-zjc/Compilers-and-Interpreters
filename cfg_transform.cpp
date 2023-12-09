@@ -711,6 +711,11 @@ LocalRegisterAllocation::transform_basic_block(const InstructionSequence *orig_b
       RuntimeError::raise("err!\n");
       break;
     }
+    // for peephole optimization
+    if (opcode == HINS_call)
+    {
+      result_iseq->get_last_instruction()->set_symbol(orig_ins->get_symbol());
+    }
   }
   reset_local_state();
   return result_iseq;
@@ -789,7 +794,7 @@ Operand LocalRegisterAllocation::assign_mreg_by_rank(Operand opd)
   int count = 0;
   for (const auto &element : m_local_rank)
   {
-    if (count >= 4)
+    if (count > 4)
     {
       break;
     }
@@ -797,6 +802,8 @@ Operand LocalRegisterAllocation::assign_mreg_by_rank(Operand opd)
     {
       opd.set_machine_reg(caller_saved[count]);
       m_func_ast->insert_caller_save_list(caller_saved[count]);
+      struct LocalRegMatching lrm(element.first, caller_saved[count], element.second);
+      m_func_ast->insert_local_rank(lrm);
     }
     ++count;
   }
@@ -847,7 +854,7 @@ MachineReg LocalRegisterAllocation::emit_machine_reg_from_pool()
   {
     return MREG_END;
   }
-  MachineReg aval_reg = m_register_pool.top();
+  MachineReg aval_reg = m_register_pool.front();
   m_register_pool.pop();
   return aval_reg;
 }
@@ -1011,6 +1018,26 @@ void LocalRegisterAllocation::visit_variable_ref(Node *n)
               [](const auto &a, const auto &b)
               { return a.second > b.second; });
   }
+}
+
+void LocalRegisterAllocation::visit_while_statement(Node *n)
+{
+  m_cur_rank = m_cur_rank * 10;
+  visit_children(n);
+  m_cur_rank = m_cur_rank / 10;
+}
+
+void LocalRegisterAllocation::visit_for_statement(Node *n)
+{
+  m_cur_rank = m_cur_rank * 10;
+  visit_children(n);
+  m_cur_rank = m_cur_rank / 10;
+}
+void LocalRegisterAllocation::visit_do_while_statement(Node *n)
+{
+  m_cur_rank = m_cur_rank * 10;
+  visit_children(n);
+  m_cur_rank = m_cur_rank / 10;
 }
 // void LocalRegisterAllocation::prepare_un_assignable_vreg_pool(const InstructionSequence *orig_bb)
 // {

@@ -470,6 +470,8 @@ void HighLevelCodegen::visit_function_call_expression(Node *n)
   }
   // call instruction
   m_hl_iseq->append(new Instruction(HINS_call, Operand(Operand::LABEL, func_name)));
+  // peephole optimization
+  m_hl_iseq->get_last_instruction()->set_symbol(n->get_kid(0)->get_symbol());
   // recover argument registers
   set_cur_vreg(saved_vreg);
   // assign the return value in vreg0 into a new temporary virtual register

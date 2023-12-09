@@ -8,126 +8,134 @@
 #include "lowlevel.h"
 #include "lowlevel_defuse.h"
 
-namespace {
+namespace
+{
 
-const MachineReg ARG_REGS[] = { MREG_RDI, MREG_RSI, MREG_RDX, MREG_R8, MREG_R9 };
+  const MachineReg ARG_REGS[] = {MREG_RDI, MREG_RSI, MREG_RDX, MREG_R8, MREG_R9};
 
-// "Normal" instructions which have no implicit defs or uses,
-// and for which the last operand is a destination operand
-const std::set<LowLevelOpcode> NORMAL_OPCODES = {
-  MINS_MOVB,
-  MINS_MOVW,
-  MINS_MOVL,
-  MINS_MOVQ,
-  MINS_ADDB,
-  MINS_ADDW,
-  MINS_ADDL,
-  MINS_ADDQ,
-  MINS_SUBB,
-  MINS_SUBW,
-  MINS_SUBL,
-  MINS_SUBQ,
-  MINS_LEAQ,
-  MINS_IMULL,
-  MINS_IMULQ,
-  MINS_POPQ,
-  MINS_MOVSBW,
-  MINS_MOVSBL,
-  MINS_MOVSBQ,
-  MINS_MOVSWL,
-  MINS_MOVSWQ,
-  MINS_MOVSLQ,
-  MINS_MOVZBW,
-  MINS_MOVZBL,
-  MINS_MOVZBQ,
-  MINS_MOVZWL,
-  MINS_MOVZWQ,
-  MINS_MOVZLQ,
-  MINS_SETL,
-  MINS_SETLE,
-  MINS_SETG,
-  MINS_SETGE,
-  MINS_SETE,
-  MINS_SETNE,
-};
+  // "Normal" instructions which have no implicit defs or uses,
+  // and for which the last operand is a destination operand
+  const std::set<LowLevelOpcode> NORMAL_OPCODES = {
+      MINS_MOVB,
+      MINS_MOVW,
+      MINS_MOVL,
+      MINS_MOVQ,
+      MINS_ADDB,
+      MINS_ADDW,
+      MINS_ADDL,
+      MINS_ADDQ,
+      MINS_SUBB,
+      MINS_SUBW,
+      MINS_SUBL,
+      MINS_SUBQ,
+      MINS_LEAQ,
+      MINS_IMULL,
+      MINS_IMULQ,
+      MINS_POPQ,
+      MINS_MOVSBW,
+      MINS_MOVSBL,
+      MINS_MOVSBQ,
+      MINS_MOVSWL,
+      MINS_MOVSWQ,
+      MINS_MOVSLQ,
+      MINS_MOVZBW,
+      MINS_MOVZBL,
+      MINS_MOVZBQ,
+      MINS_MOVZWL,
+      MINS_MOVZWQ,
+      MINS_MOVZLQ,
+      MINS_SETL,
+      MINS_SETLE,
+      MINS_SETG,
+      MINS_SETGE,
+      MINS_SETE,
+      MINS_SETNE,
+  };
 
-// Subset of NORMAL_OPCODES where the destination is not a use
-// (basically, just the move instructions, leaq, and popq)
-const std::set<LowLevelOpcode> MOVE_OPCODES = {
-  MINS_MOVB,
-  MINS_MOVW,
-  MINS_MOVL,
-  MINS_MOVQ,
-  MINS_MOVSBW,
-  MINS_MOVSBL,
-  MINS_MOVSBQ,
-  MINS_MOVSWL,
-  MINS_MOVSWQ,
-  MINS_MOVSLQ,
-  MINS_MOVZBW,
-  MINS_MOVZBL,
-  MINS_MOVZBQ,
-  MINS_MOVZWL,
-  MINS_MOVZWQ,
-  MINS_MOVZLQ,
-  MINS_LEAQ,
-  MINS_POPQ,
-};
+  // Subset of NORMAL_OPCODES where the destination is not a use
+  // (basically, just the move instructions, leaq, and popq)
+  const std::set<LowLevelOpcode> MOVE_OPCODES = {
+      MINS_MOVB,
+      MINS_MOVW,
+      MINS_MOVL,
+      MINS_MOVQ,
+      MINS_MOVSBW,
+      MINS_MOVSBL,
+      MINS_MOVSBQ,
+      MINS_MOVSWL,
+      MINS_MOVSWQ,
+      MINS_MOVSLQ,
+      MINS_MOVZBW,
+      MINS_MOVZBL,
+      MINS_MOVZBQ,
+      MINS_MOVZWL,
+      MINS_MOVZWQ,
+      MINS_MOVZLQ,
+      MINS_LEAQ,
+      MINS_POPQ,
+      MINS_SETL,
+      MINS_SETLE,
+      MINS_SETG,
+      MINS_SETGE,
+      MINS_SETE,
+      MINS_SETNE,
+  };
 
-// Opcodes that are defs, but have implicit operands
-const std::set<LowLevelOpcode> IMPLICIT_DEF_OPCODES = {
-  MINS_IDIVL,
-  MINS_IDIVQ,
-  MINS_CDQ,
-  MINS_CQTO,
-  MINS_CALL,
-};
+  // Opcodes that are defs, but have implicit operands
+  const std::set<LowLevelOpcode> IMPLICIT_DEF_OPCODES = {
+      MINS_IDIVL,
+      MINS_IDIVQ,
+      MINS_CDQ,
+      MINS_CQTO,
+      MINS_CALL,
+  };
 
-// Opcodes that are never defs, and in which explicit operands
-// are always uses
-const std::set<LowLevelOpcode> NON_DEF_OPCODES = {
-  MINS_RET,
-  MINS_JMP,
-  MINS_JE,
-  MINS_JNE,
-  MINS_JL,
-  MINS_JLE,
-  MINS_JG,
-  MINS_JGE,
-  MINS_JB,
-  MINS_JBE,
-  MINS_JA,
-  MINS_JAE,
-  MINS_CMPB,
-  MINS_CMPW,
-  MINS_CMPL,
-  MINS_CMPQ,
-};
+  // Opcodes that are never defs, and in which explicit operands
+  // are always uses
+  const std::set<LowLevelOpcode> NON_DEF_OPCODES = {
+      MINS_RET,
+      MINS_JMP,
+      MINS_JE,
+      MINS_JNE,
+      MINS_JL,
+      MINS_JLE,
+      MINS_JG,
+      MINS_JGE,
+      MINS_JB,
+      MINS_JBE,
+      MINS_JA,
+      MINS_JAE,
+      MINS_CMPB,
+      MINS_CMPW,
+      MINS_CMPL,
+      MINS_CMPQ,
+  };
 
-// Opcodes that are never uses
-const std::set<LowLevelOpcode> NON_USE_OPCODES = {
-  MINS_JMP,
-  MINS_JE,
-  MINS_JNE,
-  MINS_JL,
-  MINS_JLE,
-  MINS_JG,
-  MINS_JGE,
-  MINS_JB,
-  MINS_JBE,
-  MINS_JA,
-  MINS_JAE,
-};
+  // Opcodes that are never uses
+  const std::set<LowLevelOpcode> NON_USE_OPCODES = {
+      MINS_JMP,
+      MINS_JE,
+      MINS_JNE,
+      MINS_JL,
+      MINS_JLE,
+      MINS_JG,
+      MINS_JGE,
+      MINS_JB,
+      MINS_JBE,
+      MINS_JA,
+      MINS_JAE,
+  };
 
-// opcodes which must be handled specially
-// MINS_CALL: def of %rax, use of whichever arg regs are used
-// MINS_IDIVL, MINS_IDIVQ: implicit def and use of %rax and %rdx
-// MINS_CDQ, MINS_CQTO: implicit use of %rax, implicit def of %rdx
-// MINS_RET: implicit use of %rax?
+  // opcodes which must be handled specially
+  // MINS_CALL: def of %rax, use of whichever arg regs are used
+  // MINS_IDIVL, MINS_IDIVQ: implicit def and use of %rax and %rdx
+  // MINS_CDQ, MINS_CQTO: implicit use of %rax, implicit def of %rdx
+  // MINS_RET: implicit use of %rax?
 
 }
 
-bool LowLevel::is_def(Instruction *ins) {
+bool LowLevel::is_def(Instruction *ins)
+{
   LowLevelOpcode ll_opcode = LowLevelOpcode(ins->get_opcode());
 
   // "Normal" opcodes: instruction is a def IFF the last
@@ -139,14 +147,16 @@ bool LowLevel::is_def(Instruction *ins) {
   return IMPLICIT_DEF_OPCODES.count(ll_opcode) > 0;
 }
 
-std::vector<MachineReg> LowLevel::get_def_mregs(Instruction *ins) {
+std::vector<MachineReg> LowLevel::get_def_mregs(Instruction *ins)
+{
   assert(is_def(ins));
 
   LowLevelOpcode ll_opcode = LowLevelOpcode(ins->get_opcode());
 
   // special cases
 
-  if (ll_opcode == MINS_CALL) {
+  if (ll_opcode == MINS_CALL)
+  {
     // Per x86-64 calling conventions, a caller must assume that a
     // called function will modify every caller-saved register
     std::vector<MachineReg> defs;
@@ -156,21 +166,22 @@ std::vector<MachineReg> LowLevel::get_def_mregs(Instruction *ins) {
   }
 
   if (ll_opcode == MINS_IDIVL || ll_opcode == MINS_IDIVQ)
-    return std::vector<MachineReg>({ MREG_RAX, MREG_RDX });
+    return std::vector<MachineReg>({MREG_RAX, MREG_RDX});
 
   if (ll_opcode == MINS_CDQ || ll_opcode == MINS_CQTO)
-    return std::vector<MachineReg>({ MREG_RDX });
+    return std::vector<MachineReg>({MREG_RDX});
 
   if (ll_opcode == MINS_RET)
     return std::vector<MachineReg>();
 
   // For all "normal" instructions, the last operand is the one
   // being defined
-  if (NORMAL_OPCODES.count(ll_opcode) > 0) {
+  if (NORMAL_OPCODES.count(ll_opcode) > 0)
+  {
     Operand last = ins->get_last_operand();
     assert(!last.is_memref());
     assert(last.has_base_reg());
-    return std::vector<MachineReg>({ MachineReg(last.get_base_reg()) });
+    return std::vector<MachineReg>({MachineReg(last.get_base_reg())});
   }
 
   // Assume no defs
@@ -178,11 +189,13 @@ std::vector<MachineReg> LowLevel::get_def_mregs(Instruction *ins) {
   return std::vector<MachineReg>();
 }
 
-std::vector<MachineReg> LowLevel::get_use_mregs(Instruction *ins) {
+std::vector<MachineReg> LowLevel::get_use_mregs(Instruction *ins)
+{
   LowLevelOpcode ll_opcode = LowLevelOpcode(ins->get_opcode());
   unsigned num_operands = ins->get_num_operands();
 
-  if (ll_opcode == MINS_CALL) {
+  if (ll_opcode == MINS_CALL)
+  {
     // Determine which argument registers are used.
     // Note that this will require that the Instruction
     // has the pointer to the Symbol representing the
@@ -208,26 +221,26 @@ std::vector<MachineReg> LowLevel::get_use_mregs(Instruction *ins) {
   }
 
   if (ll_opcode == MINS_IDIVL || ll_opcode == MINS_IDIVQ)
-    return std::vector<MachineReg>({ MREG_RAX, MREG_RDX });
+    return std::vector<MachineReg>({MREG_RAX, MREG_RDX});
 
   if (ll_opcode == MINS_CDQ || ll_opcode == MINS_CQTO)
-    return std::vector<MachineReg>({ MREG_RAX });
+    return std::vector<MachineReg>({MREG_RAX});
 
   if (ll_opcode == MINS_RET)
-    return std::vector<MachineReg>({ MREG_RAX });
+    return std::vector<MachineReg>({MREG_RAX});
 
   if (ll_opcode == MINS_PUSHQ)
-    return std::vector<MachineReg>({ MachineReg(ins->get_operand(0).get_base_reg()) });
+    return std::vector<MachineReg>({MachineReg(ins->get_operand(0).get_base_reg())});
 
   // popq instructions are not a use
   if (ll_opcode == MINS_POPQ)
     return std::vector<MachineReg>();
 
-
   // For "normal" opcodes and "non-def" opcodes: any mreg mentioned that isn't
   // the destination operand is a use
   bool is_non_def = NON_DEF_OPCODES.count(ll_opcode) > 0;
-  if (is_non_def || NORMAL_OPCODES.count(ll_opcode) > 0) {
+  if (is_non_def || NORMAL_OPCODES.count(ll_opcode) > 0)
+  {
     // For moves, the last operand is *not* a use
     bool is_move = MOVE_OPCODES.count(ll_opcode) > 0;
 
@@ -235,7 +248,8 @@ std::vector<MachineReg> LowLevel::get_use_mregs(Instruction *ins) {
     // be mentioned more than once in the instruction
     std::set<MachineReg> uses;
 
-    for (unsigned i = 0; i < num_operands; ++i) {
+    for (unsigned i = 0; i < num_operands; ++i)
+    {
       Operand operand = ins->get_operand(i);
       bool is_last = (i == num_operands - 1);
 
@@ -250,7 +264,8 @@ std::vector<MachineReg> LowLevel::get_use_mregs(Instruction *ins) {
 
       bool is_use = operand.is_memref() || !is_last || !is_move || is_non_def;
 
-      if (is_use) {
+      if (is_use)
+      {
         // any mreg mentioned is a use
         if (operand.has_base_reg())
           uses.insert(MachineReg(operand.get_base_reg()));

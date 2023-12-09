@@ -10,6 +10,7 @@
 #include "live_vregs.h"
 #include <list>
 #include <stack>
+#include <queue>
 #include "node.h"
 #include "ast_visitor.h"
 
@@ -259,14 +260,16 @@ private:
   std::vector<std::pair<VirtualReg, Rank>> m_local_rank;
   unsigned long m_cur_rank = 1;
 
-  std::stack<MachineReg> m_register_pool;
+  // std::stack<MachineReg> m_register_pool;
+  std::queue<MachineReg> m_register_pool;
   std::map<VirtualReg, MachineReg> m_vreg_to_mreg;
   std::vector<SpillLocation> m_spill_location_pool;
   std::map<VirtualReg, SpillLocation> m_vreg_to_spill_loc;
 
   void reset_local_state()
   {
-    std::stack<MachineReg>().swap(m_register_pool);
+    // std::stack<MachineReg>().swap(m_register_pool);
+    std::queue<MachineReg>().swap(m_register_pool);
     m_vreg_to_mreg.clear();
     // m_spill_location_pool.clear();
     m_vreg_to_spill_loc.clear();
@@ -315,9 +318,9 @@ public:
   // virtual void visit_expression_statement(Node *n);
   // virtual void visit_return_statement(Node *n);
   // virtual void visit_return_expression_statement(Node *n);
-  // virtual void visit_while_statement(Node *n);
-  // virtual void visit_do_while_statement(Node *n);
-  // virtual void visit_for_statement(Node *n);
+  virtual void visit_while_statement(Node *n);
+  virtual void visit_do_while_statement(Node *n);
+  virtual void visit_for_statement(Node *n);
   // virtual void visit_if_statement(Node *n);
   // virtual void visit_if_else_statement(Node *n);
   // virtual void visit_binary_expression(Node *n);

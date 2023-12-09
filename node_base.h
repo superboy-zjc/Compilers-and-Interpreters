@@ -27,6 +27,7 @@
 #include "literal_value.h"
 #include "operand.h"
 #include <set>
+#include <algorithm>
 
 // The Node class will inherit from this type, so you can use it
 // to define any attributes and methods that Node objects should have
@@ -37,7 +38,22 @@ struct vreg
   unsigned m_local_vreg;
   unsigned m_arg_vreg;
 };
+// LocalRegisterAllocation
+typedef int VirtualReg;
+typedef int Rank;
+struct LocalRegMatching
+{
+  VirtualReg vreg;
+  MachineReg reg;
+  int rank;
 
+  // Equality operator
+  bool operator==(const LocalRegMatching &other) const
+  {
+    return vreg == other.vreg && reg == other.reg && rank == other.rank;
+  }
+  LocalRegMatching(VirtualReg vreg, MachineReg reg, int rank) : vreg(vreg), reg(reg), rank(rank) {}
+};
 class NodeBase
 {
 private:
@@ -61,6 +77,7 @@ private:
   // assign05
   struct vreg m_vregs_no_temp;
   std::set<MachineReg> m_caller_saved;
+  std::vector<LocalRegMatching> m_local_rank;
 
 public:
   NodeBase();
@@ -114,9 +131,21 @@ public:
   {
     m_caller_saved.insert(mreg);
   }
+  void insert_local_rank(struct LocalRegMatching lrm)
+  {
+    // Check if lrm already exists in m_local_rank
+    if (std::find(m_local_rank.begin(), m_local_rank.end(), lrm) == m_local_rank.end())
+    {
+      m_local_rank.push_back(lrm);
+    }
+  }
   const std::set<MachineReg> &get_caller_save_list()
   {
     return m_caller_saved;
+  }
+  const std::vector<LocalRegMatching> &get_local_rank_list()
+  {
+    return m_local_rank;
   }
   // assign 04
   void
