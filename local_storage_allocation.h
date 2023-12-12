@@ -25,6 +25,8 @@ private:
   unsigned int m_next_local_vreg = VREG_FIRST_LOCAL;
   unsigned int m_next_arg_vreg = VREG_FIRST_ARG;
   struct vreg m_vregs;
+  // assign05
+  std::map<std::string, StorageLoc> m_local_vreg_map;
 
 public:
   LocalStorageAllocation();
@@ -69,6 +71,7 @@ private:
       RuntimeError::raise("arg vreg overflow!");
     }
   };
+
   //
 };
 

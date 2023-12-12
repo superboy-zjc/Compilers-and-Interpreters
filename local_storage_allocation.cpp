@@ -54,7 +54,8 @@ void LocalStorageAllocation::visit_declarator_list(Node *n)
     // // store the total allocated memory size for each variable
     // m_storage_calc.finish();
     // n->get_symbol()->set_memory_storage_size(m_storage_calc.get_size());
-    printf("/* %s is stored in the %d, at the offset of %d */\n", cur_sym->get_name().c_str(), cur_sym->get_storage_type(), cur_sym->get_storage_location());
+    m_local_vreg_map[cur_sym->get_name()] = StorageLoc(cur_sym->get_storage_type(), cur_sym->get_storage_location());
+    // printf("/* %s is stored in the %d, at the offset of %d */\n", cur_sym->get_name().c_str(), cur_sym->get_storage_type(), cur_sym->get_storage_location());
   }
 }
 
@@ -75,6 +76,8 @@ void LocalStorageAllocation::visit_function_definition(Node *n)
   n->set_cur_vreg(get_cur_vreg());
   // assign05, save virtual register status before assigning temporary vrs
   n->set_vreg_no_temp(get_cur_vreg());
+  n->set_var_storage_map(m_local_vreg_map);
+  m_local_vreg_map.clear();
   // recover  the virtual registers after exiting into a new scope
   set_cur_vreg(saved_vregs);
   // recover the storage status
@@ -124,7 +127,9 @@ void LocalStorageAllocation::visit_function_parameter(Node *n)
     cur_sym->set_storage_type(StorageType::VREG);
     cur_sym->set_storage_location(get_next_local_vreg());
   }
-  printf("/* %s is stored in the %d, at the offset of %d */ \n", cur_sym->get_name().c_str(), cur_sym->get_storage_type(), cur_sym->get_storage_location());
+  m_local_vreg_map[cur_sym->get_name()] = StorageLoc(cur_sym->get_storage_type(), cur_sym->get_storage_location());
+
+  // printf("/* %s is stored in the %d, at the offset of %d */ \n", cur_sym->get_name().c_str(), cur_sym->get_storage_type(), cur_sym->get_storage_location());
 }
 
 void LocalStorageAllocation::visit_statement_list(Node *n)

@@ -54,6 +54,13 @@ struct LocalRegMatching
   }
   LocalRegMatching(VirtualReg vreg, MachineReg reg, int rank) : vreg(vreg), reg(reg), rank(rank) {}
 };
+struct StorageLoc
+{
+  int loc;                            // vreg or memory
+  int offset;                         // vreg number or memory offset
+  StorageLoc() : loc(0), offset(0) {} //
+  StorageLoc(int loc, int offset) : loc(loc), offset(offset) {}
+};
 class NodeBase
 {
 private:
@@ -78,6 +85,7 @@ private:
   struct vreg m_vregs_no_temp;
   std::set<MachineReg> m_caller_saved;
   std::vector<LocalRegMatching> m_local_rank;
+  std::map<std::string, StorageLoc> m_local_vreg_map;
 
 public:
   NodeBase();
@@ -122,6 +130,14 @@ public:
     m_vregs_no_temp.m_arg_vreg = vregs.m_arg_vreg;
     m_vregs_no_temp.m_local_vreg = vregs.m_local_vreg;
   };
+  void set_var_storage_map(std::map<std::string, StorageLoc> &local_vreg_map)
+  {
+    m_local_vreg_map = local_vreg_map;
+  }
+  std::map<std::string, StorageLoc> &get_var_storage_map()
+  {
+    return m_local_vreg_map;
+  }
   // assign05
   struct vreg get_vreg_no_temp() const
   {
@@ -137,6 +153,9 @@ public:
     if (std::find(m_local_rank.begin(), m_local_rank.end(), lrm) == m_local_rank.end())
     {
       m_local_rank.push_back(lrm);
+      std::sort(m_local_rank.begin(), m_local_rank.end(),
+                [](const auto &a, const auto &b)
+                { return a.rank > b.rank; });
     }
   }
   const std::set<MachineReg> &get_caller_save_list()

@@ -15,43 +15,6 @@
 #include <cassert>
 #include "peephole_ll.h"
 
-namespace
-{
-  const int BYTE = 0;
-  const int WORD = 1;
-  const int DWORD = 2;
-  const int QUAD = 3;
-
-  // names of machine registers for the 8 bit, 16 bit,
-  // 32 bit, and 64 bit sizes
-  const char *mreg_operand_names[][4] = {
-      {"al", "ax", "eax", "rax"},
-      {"bl", "bx", "ebx", "rbx"},
-      {"cl", "cx", "ecx", "rcx"},
-      {"dl", "dx", "edx", "rdx"},
-      {"sil", "si", "esi", "rsi"},
-      {"dil", "di", "edi", "rdi"},
-      {"spl", "sp", "esp", "rsp"},
-      {"bpl", "bp", "ebp", "rbp"},
-      {"r8b", "r8w", "r8d", "r8"},
-      {"r9b", "r9w", "r9d", "r9"},
-      {"r10b", "r10w", "r10d", "r10"},
-      {"r11b", "r11w", "r11d", "r11"},
-      {"r12b", "r12w", "r12d", "r12"},
-      {"r13b", "r13w", "r13d", "r13"},
-      {"r14b", "r14w", "r14d", "r14"},
-      {"r15b", "r15w", "r15d", "r15"},
-  };
-
-  const int num_mregs = sizeof(mreg_operand_names) / sizeof(mreg_operand_names[0]);
-
-  std::string format_reg(int regnum, int size)
-  {
-    assert(regnum >= 0 && regnum < num_mregs);
-    assert(size >= BYTE && size <= QUAD);
-    return std::string("%") + mreg_operand_names[regnum][size];
-  }
-}
 // This map has some "obvious" translations of high-level opcodes to
 // low-level opcodes.
 const std::map<HighLevelOpcode, LowLevelOpcode> HL_TO_LL = {
@@ -316,16 +279,15 @@ void LowLevelCodeGen::translate_instruction(Instruction *hl_ins, const std::shar
     // if you allocated callee-saved registers as storage for local variables,
     //       emit pushq instructions to save their original values
     // save callee-saved registers (if any)
-    const std::set<MachineReg> caller_saved = ll_iseq->get_funcdef_ast()->get_caller_save_list();
     const std::vector<LocalRegMatching>
         local_rank_list = ll_iseq->get_funcdef_ast()->get_local_rank_list();
     for (const auto &element : local_rank_list)
     {
-      printf("/* allocate machine register %s for virtual register v%d, which rank is %d */\n", format_reg(element.reg, QUAD).c_str(), element.vreg, element.rank);
       ll_iseq->append(new Instruction(MINS_PUSHQ, Operand(Operand::MREG64, element.reg)));
     }
     // aligned with 16 bytes
-    if ((caller_saved.size() % 2) == 1)
+    const std::set<MachineReg> caller_saved = ll_iseq->get_funcdef_ast()->get_caller_save_list();
+    if (m_optimize && (caller_saved.size() % 2) == 1)
     {
       ll_iseq->append(new Instruction(MINS_SUBQ, Operand(Operand::IMM_IVAL, 8), Operand(Operand::MREG64, MREG_RSP)));
     }
@@ -420,16 +382,16 @@ void LowLevelCodeGen::translate_instruction(Instruction *hl_ins, const std::shar
     Operand src2_operand = get_ll_operand(hl_ins->get_operand(1), size, ll_iseq);
     Operand dest_operand = get_ll_operand(hl_ins->get_operand(0), size, ll_iseq);
 
-    if (src1_operand.is_memref() && src2_operand.is_memref())
-    {
-      src1_operand = emit_mov_to_temp(src1_operand, size, ll_iseq);
-      src2_operand = emit_mov_to_temp(src2_operand, size, ll_iseq);
-    }
-    else if (src1_operand.is_memref())
-    {
-      // move source operand into a temporary register
-      src1_operand = emit_mov_to_temp(src1_operand, size, ll_iseq);
-    }
+    // if (src1_operand.is_memref() && src2_operand.is_memref())
+    // {
+    //   src1_operand = emit_mov_to_temp(src1_operand, size, ll_iseq);
+    //   src2_operand = emit_mov_to_temp(src2_operand, size, ll_iseq);
+    // }
+    // else if (src1_operand.is_memref())
+    // {
+    //   // move source operand into a temporary register
+    //   src1_operand = emit_mov_to_temp(src1_operand, size, ll_iseq);
+    // }
     // else if (src2_operand.is_memref())
     // {
     // assign05, fix the bug! destructive assignment to operand 2 (which is destination)!!!

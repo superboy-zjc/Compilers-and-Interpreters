@@ -1,8 +1,10 @@
 #include <cassert>
 #include "lowlevel.h"
 
-const char *lowlevel_opcode_to_str(LowLevelOpcode opcode) {
-  switch (opcode) {
+const char *lowlevel_opcode_to_str(LowLevelOpcode opcode)
+{
+  switch (opcode)
+  {
   case MINS_NOP:
     return "nop";
   case MINS_MOVB:
@@ -117,9 +119,25 @@ const char *lowlevel_opcode_to_str(LowLevelOpcode opcode) {
     return "sete";
   case MINS_SETNE:
     return "setne";
+  case MINS_XORB:
+    return "xorb";
+  case MINS_XORW:
+    return "xorw";
+  case MINS_XORL:
+    return "xorl";
+  case MINS_XORQ:
+    return "xorq";
+  case MINS_INCB:
+    return "incb";
+  case MINS_INCW:
+    return "incw";
+  case MINS_INCL:
+    return "incl";
+  case MINS_INCQ:
+    return "incq";
+
   default:
     assert(false);
     return nullptr;
   }
 }
-

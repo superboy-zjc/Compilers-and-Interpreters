@@ -37,6 +37,55 @@
 #include "context.h"
 #include "cfg_transform.h"
 
+namespace
+{
+  const int BYTE = 0;
+  const int WORD = 1;
+  const int DWORD = 2;
+  const int QUAD = 3;
+
+  // names of machine registers for the 8 bit, 16 bit,
+  // 32 bit, and 64 bit sizes
+  const char *mreg_operand_names[][4] = {
+      {"al", "ax", "eax", "rax"},
+      {"bl", "bx", "ebx", "rbx"},
+      {"cl", "cx", "ecx", "rcx"},
+      {"dl", "dx", "edx", "rdx"},
+      {"sil", "si", "esi", "rsi"},
+      {"dil", "di", "edi", "rdi"},
+      {"spl", "sp", "esp", "rsp"},
+      {"bpl", "bp", "ebp", "rbp"},
+      {"r8b", "r8w", "r8d", "r8"},
+      {"r9b", "r9w", "r9d", "r9"},
+      {"r10b", "r10w", "r10d", "r10"},
+      {"r11b", "r11w", "r11d", "r11"},
+      {"r12b", "r12w", "r12d", "r12"},
+      {"r13b", "r13w", "r13d", "r13"},
+      {"r14b", "r14w", "r14d", "r14"},
+      {"r15b", "r15w", "r15d", "r15"},
+  };
+
+  const int num_mregs = sizeof(mreg_operand_names) / sizeof(mreg_operand_names[0]);
+
+  std::string format_reg(int regnum, int size)
+  {
+    assert(regnum >= 0 && regnum < num_mregs);
+    assert(size >= BYTE && size <= QUAD);
+    return std::string("%") + mreg_operand_names[regnum][size];
+  }
+}
+std::string find_var(std::map<std::string, StorageLoc> locs, int vreg)
+{
+  for (const auto &pair : locs)
+  {
+    if (pair.second.loc == StorageType::VREG && pair.second.offset == vreg)
+    {
+      std::string s = pair.first;
+      return s;
+    }
+  }
+  RuntimeError::raise("not eee\n");
+}
 Context::Context()
     : m_ast(nullptr)
 {
@@ -210,6 +259,23 @@ void Context::highlevel_codegen(ModuleCollector *module_collector, bool optimize
 
         // Convert thetransformed high-level CFG back to an InstructionSequence
         cur_hl_iseq = cfg->create_instruction_sequence();
+      }
+      // print the local variable storage location
+      std::map<std::string, StorageLoc> locs = child->get_var_storage_map();
+      for (auto it = locs.begin(); it != locs.end(); ++it)
+      {
+        if (it->second.loc == StorageType::MEM)
+          printf("/* variable '%s' allocated at memory offset %d */\n", it->first.c_str(), it->second.offset);
+        else if (it->second.loc == StorageType::VREG)
+        {
+          printf("/* variable '%s' allocated vreg %d */\n", it->first.c_str(), it->second.offset);
+        }
+      }
+      const std::vector<LocalRegMatching>
+          local_rank_list = child->get_local_rank_list();
+      for (const auto &element : local_rank_list)
+      {
+        printf("/* allocate machine register %s for variable '%s' (v%d), which rank is %d */\n", format_reg(element.reg, QUAD).c_str(), find_var(locs, element.vreg).c_str(), element.vreg, element.rank);
       }
 
       // store a pointer to the function definition AST in the

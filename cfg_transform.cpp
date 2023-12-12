@@ -833,10 +833,6 @@ void LocalRegisterAllocation::allocate_machine_reg(Operand opd, const Instructio
     RuntimeError::raise("Allocate machine register to a wrong operand!");
   }
   int base_vr_n = opd.get_base_reg();
-  // if (base_vr_n == 19)
-  // {
-  //   printf("debug\n");
-  // }
   MachineReg machine_reg = emit_machine_reg_from_pool();
   // if no available machine registers
   if (machine_reg == MREG_END)

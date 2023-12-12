@@ -1142,19 +1142,6 @@ namespace
 
           // Make sure B and C are dead afterwards
           "BC"),
-      // pm(
-      //     // match instruction
-      //     // Operands:
-      //     {
-      //         matcher(m_opcode(MINS_MOVQ), {m_mreg(E), m_mreg(F)}),
-      //         matcher(m_opcode(MINS_MOVQ), {m_mreg_mem(F), m_mreg(G)}),
-      //     },
-      //     // rewrite
-      //     {
-      //         gen(g_opcode(MINS_MOVQ), {g_mreg_mem(E), g_prev(G)}),
-      //     },
-      //     "F" //  must be dead
-      //     ),
       pm(
           // match instruction
           // Operands:
@@ -1229,7 +1216,88 @@ namespace
 
           "C" // C, E must be dead
           ),
+      pm(
+          // match instruction
+          // Operands:
+          {
+              matcher(m_opcode(MINS_LEAQ), {m_any(E), m_mreg(F)}),
+              matcher(m_opcode(MINS_MOVQ), {m_mreg(F), m_mreg(G)}),
+          },
+          // rewrite
+          {
+              gen(g_opcode(MINS_LEAQ), {g_prev(E), g_prev(G)}),
+          },
+          "F" //  must be dead
+          ),
 
+      pm(
+          // match instruction
+          // Operands:
+          {
+              matcher(m_opcode(MINS_MOVL), {m_mreg(A), m_mreg(B)}),
+              matcher(m_opcode(MINS_CMPL), {m_any(C), m_mreg(B)}),
+          },
+          // rewrite
+          {
+              gen(g_opcode(MINS_CMPL), {g_prev(C), g_prev(A)}),
+          },
+          "B" //  must be dead
+          ),
+
+      pm(
+          // match instruction
+          // Operands:
+          {
+              matcher(m_opcode(MINS_CMPL), {m_any(A), m_any(B)}),
+              matcher(m_opcode(MINS_SETL, 6, A), {m_mreg(C)}),
+              matcher(m_opcode(MINS_MOVZBL), {m_mreg(C), m_mreg(D)}),
+              matcher(m_opcode(MINS_MOVL), {m_mreg(D), m_mreg(E)}),
+              matcher(m_opcode(MINS_CMPL), {m_imm(0), m_mreg(E)}),
+              matcher(m_opcode(MINS_JNE), {m_label(F)}),
+          },
+          // rewrite
+          {
+              gen(g_opcode(MINS_CMPL), {g_prev(A), g_prev(B)}),
+              gen(g_opcode_j_from_set(A), {g_prev(F)}),
+          },
+          "CDE" //  must be dead
+          ),
+      pm(
+          // match instruction
+          // Operands:
+          {
+              matcher(m_opcode(MINS_MOVL), {m_imm(0), m_mreg(A)}),
+          },
+          // rewrite
+          {
+              gen(g_opcode(MINS_XORL), {g_prev(A), g_prev(A)}),
+          },
+          "" //  must be dead
+          ),
+      pm(
+          // match instruction
+          // Operands:
+          {
+              matcher(m_opcode(MINS_ADDL), {m_imm(1), m_mreg(A)}),
+          },
+          // rewrite
+          {
+              gen(g_opcode(MINS_INCL), {g_prev(A)}),
+          },
+          "" //  must be dead
+          ),
+      // pm(
+      //     // match instruction
+      //     // Operands:
+      //     {
+      //         matcher(m_opcode(MINS_ADDL), {m_imm(1), m_mreg(A)}),
+      //     },
+      //     // rewrite
+      //     {
+      //         gen(g_opcode(MINS_INCL), {g_prev(A)}),
+      //     },
+      //     "" //  must be dead
+      //     ),
       // pm(
       //     // match instruction
       //     // Operands:

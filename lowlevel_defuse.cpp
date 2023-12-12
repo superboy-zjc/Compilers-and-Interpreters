@@ -50,6 +50,15 @@ namespace
       MINS_SETGE,
       MINS_SETE,
       MINS_SETNE,
+      MINS_XORB,
+      MINS_XORW,
+      MINS_XORL,
+      MINS_XORQ,
+      MINS_INCB,
+      MINS_INCW,
+      MINS_INCL,
+      MINS_INCQ
+
   };
 
   // Subset of NORMAL_OPCODES where the destination is not a use
@@ -79,7 +88,14 @@ namespace
       MINS_SETGE,
       MINS_SETE,
       MINS_SETNE,
-  };
+      MINS_XORB,
+      MINS_XORW,
+      MINS_XORL,
+      MINS_XORQ,
+      MINS_INCB,
+      MINS_INCW,
+      MINS_INCL,
+      MINS_INCQ};
 
   // Opcodes that are defs, but have implicit operands
   const std::set<LowLevelOpcode> IMPLICIT_DEF_OPCODES = {
