@@ -378,6 +378,55 @@ namespace
   }
 
   ////////////////////////////////////////////////////////////////////////
+  // Match an immediate scale integer operand and record the match
+  // in the context (and verify that other references to the
+  // immediate have the same immediate value)
+  ////////////////////////////////////////////////////////////////////////
+
+  class MatchScaleImmediate : public MatchOperand
+  {
+  private:
+    char m_name;
+
+  public:
+    MatchScaleImmediate(char m_name);
+    virtual ~MatchScaleImmediate();
+
+    virtual bool match(Operand operand, MatchContext &ctx) const;
+  };
+
+  MatchScaleImmediate::MatchScaleImmediate(char name)
+      : m_name(name)
+  {
+  }
+
+  MatchScaleImmediate::~MatchScaleImmediate()
+  {
+  }
+
+  bool MatchScaleImmediate::match(Operand operand, MatchContext &ctx) const
+  {
+    if (operand.get_kind() != Operand::IMM_IVAL)
+      return false;
+    long val = operand.get_imm_ival();
+    if (val != 1 && val != 2 && val != 4 && val != 8)
+      return false;
+    if (!ctx.has_operand_match(m_name))
+    {
+      // first match of an immediate with this name
+      ctx.set_operand_match(m_name, operand);
+      return true;
+    }
+    else
+    {
+      // make sure this immediate matches the previously matched one
+      // with the same name
+      Operand prev = ctx.get_operand_match(m_name);
+      return operand == prev;
+    }
+  }
+
+  ////////////////////////////////////////////////////////////////////////
   // Match any operand (useful for situations where a source
   // operand could be either an mreg or an immediate).
   // The operand can optionally be specified.
@@ -627,10 +676,12 @@ namespace
   {
   private:
     char m_base_name, m_index_name;
+    char m_scale_name = '\0';
     int m_scale;
 
   public:
     GenerateIndexedMemref(char base_name, char index_name, int scale);
+    GenerateIndexedMemref(char base_name, char index_name, char scale_name);
     virtual ~GenerateIndexedMemref();
 
     virtual Operand get_operand(const MatchContext &ctx) const;
@@ -640,7 +691,10 @@ namespace
       : m_base_name(base_name), m_index_name(index_name), m_scale(scale)
   {
   }
-
+  GenerateIndexedMemref::GenerateIndexedMemref(char base_name, char index_name, char scale_name)
+      : m_base_name(base_name), m_index_name(index_name), m_scale_name(scale_name)
+  {
+  }
   GenerateIndexedMemref::~GenerateIndexedMemref()
   {
   }
@@ -649,6 +703,11 @@ namespace
   {
     Operand base_reg = ctx.get_operand_match(m_base_name);
     Operand index_reg = ctx.get_operand_match(m_index_name);
+    if (m_scale_name != '\0')
+    {
+      Operand scale = ctx.get_operand_match(m_scale_name);
+      return Operand(Operand::MREG64_MEM_IDX_SCALE, base_reg.get_base_reg(), index_reg.get_base_reg(), scale.get_imm_ival());
+    }
     return Operand(Operand::MREG64_MEM_IDX_SCALE, base_reg.get_base_reg(), index_reg.get_base_reg(), m_scale);
   }
 
@@ -964,6 +1023,11 @@ namespace
     return new MatchImmediate(name);
   }
 
+  MatchOperand *m_imm_scale(char name)
+  {
+    return new MatchScaleImmediate(name);
+  }
+
   MatchOperand *m_mreg_mem(char name)
   {
     return new MatchMreg(name, true);
@@ -1014,6 +1078,11 @@ namespace
     return new GenerateIndexedMemref(base_name, index_name, scale);
   }
 
+  GenerateOperand *g_mreg_mem_idx(char base_name, char index_name, char scale_name)
+  {
+    return new GenerateIndexedMemref(base_name, index_name, scale_name);
+  }
+
   GenerateOperand *g_mreg_mem_off(char base_name, char off_name)
   {
     return new GenerateOffsetMemref(base_name, off_name);
@@ -1056,8 +1125,8 @@ namespace
           // match instruction
           // memory move, like ,mov_x (vrXX), vrXX OR mov_x vrXX, (vrXX)
           {
-              matcher(m_opcode(MINS_MOVB, 4, A), {m_mreg(A), m_mreg(B)}),
-              matcher(m_opcode(A), {m_mreg_mem(B), m_mreg(C)}),
+              matcher(m_opcode(MINS_MOVQ), {m_mreg(A), m_mreg(B)}),
+              matcher(m_opcode(MINS_MOVB, 4, A), {m_mreg_mem(B), m_mreg(C)}),
           },
 
           // rewrite
@@ -1070,8 +1139,8 @@ namespace
           // match instruction
           // memory move, like ,mov_x (vrXX), vrXX OR mov_x vrXX, (vrXX)
           {
-              matcher(m_opcode(MINS_MOVB, 4, A), {m_mreg(A), m_mreg(B)}),
-              matcher(m_opcode(A), {m_any(C), m_mreg_mem(B)}),
+              matcher(m_opcode(MINS_MOVQ), {m_mreg(A), m_mreg(B)}),
+              matcher(m_opcode(MINS_MOVB, 4, A), {m_any(C), m_mreg_mem(B)}),
           },
 
           // rewrite
@@ -1126,6 +1195,26 @@ namespace
           "B", // B must be dead
           "CD" // C and D must be different locations
           ),
+      pm(
+          // match instruction
+          // Operands:
+          //  A = first (left) source operand
+          //  B = temporary code register (probably %r10)
+          //  C = second (right) source operand
+          //  D = destination operand (probably an allocated temporary)
+          {
+              matcher(m_opcode(MINS_MOVB, 4, B), {m_mreg(A), m_mreg(B)}),
+              matcher(m_opcode_alu_l(A), {m_mreg(C), m_mreg(B)}),
+              matcher(m_opcode(B), {m_mreg(B), m_mreg(C)}),
+          },
+
+          // rewrite
+          {
+              gen(g_opcode(A), {g_prev(A), g_prev(C)}),
+          },
+
+          "B" // B must be dead
+          ),
       // Simplify 32 to 64 bit signed conversions
       pm(
           // match instructions
@@ -1148,14 +1237,14 @@ namespace
           // A = array[x]
           {
               matcher(m_opcode(MINS_MOVQ), {m_mreg(A), m_mreg(C)}),
-              matcher(m_opcode(MINS_IMULQ), {m_imm(8), m_mreg(C)}),
+              matcher(m_opcode(MINS_IMULQ), {m_imm_any(B), m_mreg(C)}),
               matcher(m_opcode(MINS_MOVQ), {m_mreg(D), m_mreg(E)}),
               matcher(m_opcode(MINS_ADDQ), {m_mreg(C), m_mreg(E)}),
-              matcher(m_opcode(MINS_MOVQ), {m_mreg_mem(E), m_mreg(F)}),
+              matcher(m_opcode(MINS_MOVB, 4, A), {m_mreg_mem(E), m_mreg(F)}),
           },
           // rewrite
           {
-              gen(g_opcode(MINS_MOVQ), {g_mreg_mem_idx(D, A, 8), g_prev(F)}),
+              gen(g_opcode(A), {g_mreg_mem_idx(D, A, B), g_prev(F)}),
           },
 
           "CE" // C, E must be dead
@@ -1166,15 +1255,15 @@ namespace
           //
           {
               matcher(m_opcode(MINS_MOVQ), {m_mreg(A), m_mreg(C)}),
-              matcher(m_opcode(MINS_IMULQ), {m_imm(8), m_mreg(C)}),
+              matcher(m_opcode(MINS_IMULQ), {m_imm_any(B), m_mreg(C)}),
               matcher(m_opcode(MINS_MOVQ), {m_mreg(D), m_mreg(E)}),
               matcher(m_opcode(MINS_ADDQ), {m_mreg(C), m_mreg(E)}),
-              matcher(m_opcode(MINS_MOVQ), {m_mreg_mem(E), m_mreg(F)}),
+              matcher(m_opcode(MINS_MOVB, 4, A), {m_mreg_mem(E), m_mreg(F)}),
           },
           // rewrite
           {
-              gen(g_opcode(MINS_LEAQ), {g_mreg_mem_idx(D, A, 8), g_prev(E)}),
-              gen(g_opcode(MINS_MOVQ), {g_mreg_mem(E), g_prev(F)}),
+              gen(g_opcode(MINS_LEAQ), {g_mreg_mem_idx(D, A, B), g_prev(E)}),
+              gen(g_opcode(A), {g_mreg_mem(E), g_prev(F)}),
           },
 
           "C" // C, E must be dead
@@ -1185,14 +1274,14 @@ namespace
           // array[x] = A
           {
               matcher(m_opcode(MINS_MOVQ), {m_mreg(A), m_mreg(C)}),
-              matcher(m_opcode(MINS_IMULQ), {m_imm(8), m_mreg(C)}),
+              matcher(m_opcode(MINS_IMULQ), {m_imm_any(B), m_mreg(C)}),
               matcher(m_opcode(MINS_MOVQ), {m_mreg(D), m_mreg(E)}),
               matcher(m_opcode(MINS_ADDQ), {m_mreg(C), m_mreg(E)}),
-              matcher(m_opcode(MINS_MOVQ), {m_any(F), m_mreg_mem(E)}),
+              matcher(m_opcode(MINS_MOVB, 4, A), {m_any(F), m_mreg_mem(E)}),
           },
           // rewrite
           {
-              gen(g_opcode(MINS_MOVQ), {g_prev(F), g_mreg_mem_idx(D, A, 8)}),
+              gen(g_opcode(A), {g_prev(F), g_mreg_mem_idx(D, A, B)}),
           },
 
           "CE" // C, E must be dead
@@ -1202,16 +1291,37 @@ namespace
           // Operands:
           //
           {
+              matcher(m_opcode(MINS_MOVSLQ), {m_mreg(G), m_mreg(A)}),
               matcher(m_opcode(MINS_MOVQ), {m_mreg(A), m_mreg(C)}),
               matcher(m_opcode(MINS_IMULQ), {m_imm(8), m_mreg(C)}),
               matcher(m_opcode(MINS_MOVQ), {m_mreg(D), m_mreg(E)}),
               matcher(m_opcode(MINS_ADDQ), {m_mreg(C), m_mreg(E)}),
-              matcher(m_opcode(MINS_MOVQ), {m_any(F), m_mreg_mem(E)}),
+              matcher(m_opcode(MINS_MOVQ), {m_mreg(E), m_mreg(F)}),
           },
           // rewrite
           {
+              gen(g_opcode(MINS_MOVSLQ), {g_prev(G), g_prev(A)}),
               gen(g_opcode(MINS_LEAQ), {g_mreg_mem_idx(D, A, 8), g_prev(E)}),
-              gen(g_opcode(MINS_MOVQ), {g_prev(F), g_mreg_mem(E)}),
+              gen(g_opcode(MINS_MOVQ), {g_prev(E), g_prev(F)}),
+          },
+
+          "C" // C, E must be dead
+          ),
+      pm(
+          // match instruction
+          // Operands:
+          //
+          {
+              matcher(m_opcode(MINS_MOVQ), {m_mreg(A), m_mreg(C)}),
+              matcher(m_opcode(MINS_IMULQ), {m_imm_any(B), m_mreg(C)}),
+              matcher(m_opcode(MINS_MOVQ), {m_mreg(D), m_mreg(E)}),
+              matcher(m_opcode(MINS_ADDQ), {m_mreg(C), m_mreg(E)}),
+              matcher(m_opcode(MINS_MOVB, 4, A), {m_any(F), m_mreg_mem(E)}),
+          },
+          // rewrite
+          {
+              gen(g_opcode(MINS_LEAQ), {g_mreg_mem_idx(D, A, B), g_prev(E)}),
+              gen(g_opcode(A), {g_prev(F), g_mreg_mem(E)}),
           },
 
           "C" // C, E must be dead
@@ -1285,6 +1395,36 @@ namespace
               gen(g_opcode(MINS_INCL), {g_prev(A)}),
           },
           "" //  must be dead
+          ),
+      pm(
+          // match instruction
+          // Operands:
+          {
+              matcher(m_opcode(MINS_MOVQ), {m_mreg(A), m_mreg(B)}),
+              matcher(m_opcode(MINS_ADDQ), {m_imm_any(C), m_mreg(B)}),
+              matcher(m_opcode(MINS_MOVB, 4, A), {m_any(D), m_mreg_mem(B)}),
+          },
+          // rewrite
+          {
+              gen(g_opcode(MINS_MOVQ), {g_prev(A), g_prev(B)}),
+              gen(g_opcode(A), {g_prev(D), g_mreg_mem_off(B, C)}),
+          },
+          "B" //  must be dead
+          ),
+      pm(
+          // match instruction
+          // Operands:
+          {
+              matcher(m_opcode(MINS_MOVQ), {m_mreg(A), m_mreg(B)}),
+              matcher(m_opcode(MINS_ADDQ), {m_imm_any(C), m_mreg(B)}),
+              matcher(m_opcode(MINS_MOVB, 4, A), {m_mreg_mem(B), m_mreg(D)}),
+          },
+          // rewrite
+          {
+              gen(g_opcode(MINS_MOVQ), {g_prev(A), g_prev(B)}),
+              gen(g_opcode(A), {g_mreg_mem_off(B, C), g_prev(D)}),
+          },
+          "B" //  must be dead
           ),
   };
 
