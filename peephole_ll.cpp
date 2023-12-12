@@ -1286,55 +1286,6 @@ namespace
           },
           "" //  must be dead
           ),
-      // pm(
-      //     // match instruction
-      //     // Operands:
-      //     {
-      //         matcher(m_opcode(MINS_ADDL), {m_imm(1), m_mreg(A)}),
-      //     },
-      //     // rewrite
-      //     {
-      //         gen(g_opcode(MINS_INCL), {g_prev(A)}),
-      //     },
-      //     "" //  must be dead
-      //     ),
-      // pm(
-      //     // match instruction
-      //     // Operands:
-      //     // A = array[x]
-      //     {
-      //         matcher(m_opcode(MINS_MOVSLQ), {m_mreg(A), m_mreg(C)}),
-      //         matcher(m_opcode(MINS_IMULQ), {m_imm(8), m_mreg(C)}),
-      //         matcher(m_opcode(MINS_MOVQ), {m_mreg(D), m_mreg(E)}),
-      //         matcher(m_opcode(MINS_ADDQ), {m_mreg(C), m_mreg(E)}),
-      //         matcher(m_opcode(MINS_MOVQ), {m_mreg_mem(E), m_mreg(F)}),
-      //     },
-      //     // rewrite
-      //     {
-      //         gen(g_opcode(MINS_MOVQ), {g_mreg_mem_idx(D, A, 8), g_prev(F)}),
-      //     },
-
-      //     "" // C, E must be dead
-      //     ),
-      // pm(
-      //     // match instruction
-      //     // Operands:
-      //     // A = array[x]
-      //     {
-      //         matcher(m_opcode(MINS_MOVSLQ), {m_mreg(A), m_mreg(C)}),
-      //         matcher(m_opcode(MINS_IMULQ), {m_imm(8), m_mreg(C)}),
-      //         matcher(m_opcode(MINS_MOVQ), {m_mreg(D), m_mreg(E)}),
-      //         matcher(m_opcode(MINS_ADDQ), {m_mreg(C), m_mreg(E)}),
-      //         matcher(m_opcode(MINS_MOVQ), {m_mreg(E), m_mreg(F)}),
-      //         matcher(m_opcode(MINS_MOVQ), {m_mreg_mem(F), m_mreg(G)}),
-      //     },
-      //     // rewrite
-      //     {
-      //         gen(g_opcode(MINS_MOVQ), {g_mreg_mem_idx(D, A, 8), g_prev(G)}),
-      //     },
-
-      //     "" // C, E must be dead
-      //     )
   };
 
 #undef pm

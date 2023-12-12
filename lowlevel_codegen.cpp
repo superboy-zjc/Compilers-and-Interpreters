@@ -96,13 +96,9 @@ LowLevelCodeGen::~LowLevelCodeGen()
 std::shared_ptr<InstructionSequence> LowLevelCodeGen::generate(const std::shared_ptr<InstructionSequence> &hl_iseq)
 {
   Node *funcdef_ast = hl_iseq->get_funcdef_ast();
-  // TODO: if optimizations are enabled, could do analysis/transformation of high-level code
-
   // cur_hl_iseq is the "current" version of the high-level IR,
   // which could be a transformed version if we are doing optimizations
   std::shared_ptr<InstructionSequence> cur_hl_iseq(hl_iseq);
-  // by default, optimization
-  // m_optimize = true;
   if (m_optimize)
   {
     // High-level optiimizations
@@ -110,22 +106,6 @@ std::shared_ptr<InstructionSequence> LowLevelCodeGen::generate(const std::shared
     // Create a control-flow graph representation of the high-level code
     HighLevelControlFlowGraphBuilder hl_cfg_builder(cur_hl_iseq);
     std::shared_ptr<ControlFlowGraph> cfg = hl_cfg_builder.build();
-
-    // // Do local optimizations
-    // // (Notice!!! You should sync with the code in the context.cpp!!!)
-    // // Do LVN optimization muliple times
-    // for (int opt_time = 0; opt_time < 5; opt_time++)
-    // {
-    //   LVNOptimizationHighLevel hl_opts(cfg);
-    //   cfg = hl_opts.transform_cfg();
-    // }
-    // // dead store elimination optimization
-    // DeadStoreElimination dse_opts(cfg);
-    // cfg = dse_opts.transform_cfg();
-
-    // // Local Register Allocation
-    // LocalRegisterAllocation lra_opts(cfg, funcdef_ast);
-    // cfg = lra_opts.transform_cfg();
 
     // Convert thetransformed high-level CFG back to an InstructionSequence
     cur_hl_iseq = cfg->create_instruction_sequence();
@@ -136,7 +116,7 @@ std::shared_ptr<InstructionSequence> LowLevelCodeGen::generate(const std::shared
   }
   std::shared_ptr<InstructionSequence> ll_iseq = translate_hl_to_ll(cur_hl_iseq);
 
-  // TODO: if optimizations are enabled, could do analysis/transformation of low-level code
+  // if optimizations are enabled, could do analysis/transformation of low-level code
   if (m_optimize)
   {
     // ...could do transformations on the low-level code, including peephole
@@ -351,18 +331,13 @@ void LowLevelCodeGen::translate_instruction(Instruction *hl_ins, const std::shar
   {
     int size = highlevel_opcode_get_source_operand_size(hl_opcode);
 
-    // LowLevelOpcode add_opcode = select_ll_opcode(MINS_ADDB, size);
     LowLevelOpcode add_opcode = HL_TO_LL.at(hl_opcode);
 
     Operand src1_operand = get_ll_operand(hl_ins->get_operand(2), size, ll_iseq);
     Operand src2_operand = get_ll_operand(hl_ins->get_operand(1), size, ll_iseq);
     Operand dest_operand = get_ll_operand(hl_ins->get_operand(0), size, ll_iseq);
-    // assign05
-    //  if (src1_operand.is_memref() && src2_operand.is_memref())
-    //  {
-    //  move source operand into a temporary register
+
     src2_operand = emit_mov_to_temp(src2_operand, size, ll_iseq);
-    // }
 
     ll_iseq->append(new Instruction(add_opcode, src1_operand, src2_operand));
 
@@ -382,22 +357,9 @@ void LowLevelCodeGen::translate_instruction(Instruction *hl_ins, const std::shar
     Operand src2_operand = get_ll_operand(hl_ins->get_operand(1), size, ll_iseq);
     Operand dest_operand = get_ll_operand(hl_ins->get_operand(0), size, ll_iseq);
 
-    // if (src1_operand.is_memref() && src2_operand.is_memref())
-    // {
-    //   src1_operand = emit_mov_to_temp(src1_operand, size, ll_iseq);
-    //   src2_operand = emit_mov_to_temp(src2_operand, size, ll_iseq);
-    // }
-    // else if (src1_operand.is_memref())
-    // {
-    //   // move source operand into a temporary register
-    //   src1_operand = emit_mov_to_temp(src1_operand, size, ll_iseq);
-    // }
-    // else if (src2_operand.is_memref())
-    // {
     // assign05, fix the bug! destructive assignment to operand 2 (which is destination)!!!
     // move source operand into a temporary register
     src2_operand = emit_mov_to_temp(src2_operand, size, ll_iseq);
-    // }
 
     ll_iseq->append(new Instruction(mul_opcode, src1_operand, src2_operand));
 
@@ -565,7 +527,6 @@ void LowLevelCodeGen::translate_instruction(Instruction *hl_ins, const std::shar
   }
   // if the translation doesn't cover certain opcode, then just NOP it
   print_uncompleted(hl_ins, ll_iseq);
-  //  RuntimeError::raise("high level opcode %d not handled", int(hl_opcode));
 }
 
 /*
@@ -577,7 +538,6 @@ unsigned LowLevelCodeGen::init_storage_base(Node *funcdef_ast)
   storage_base.allocated_memory = funcdef_ast->get_memory_storage_size();
   // assign05
   storage_base.allocated_vr_num = funcdef_ast->get_last_allocated_virtual_registers() - 10 + 1;
-  // storage_base.allocated_vr_num = funcdef_ast->get_last_allocated_virtual_registers_no_temp() - 10 + 1;
 
   if ((storage_base.allocated_memory) % 8 != 0)
     storage_base.allocated_memory += (8 - (storage_base.allocated_memory % 8));
@@ -703,7 +663,6 @@ void LowLevelCodeGen::add_comment(Instruction *hl_ins, const std::shared_ptr<Ins
 {
   HighLevelFormatter formatter;
   std::string formatted_ins = formatter.format_instruction(hl_ins);
-  //  printf("%s", formatted_ins.c_str());
   ll_iseq->get_instruction(idx)->set_comment(formatted_ins);
 }
 void LowLevelCodeGen::print_uncompleted(Instruction *hl_ins, const std::shared_ptr<InstructionSequence> &ll_iseq)
@@ -783,7 +742,6 @@ Operand LowLevelCodeGen::emit_set_hl_ll(HighLevelOpcode hl_opcode, Operand src_o
   // convert a operand to a boolean length of operand
 
   // assign05
-  // Operand bool_opd = Operand(select_mreg_kind(1), src_operand.get_base_reg());
   Operand bool_opd = get_next_tmp_register(1);
   ll_iseq->append(new Instruction(HL_TO_LL.at(hl_opcode), bool_opd));
   return bool_opd;

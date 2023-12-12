@@ -156,17 +156,10 @@ void HighLevelCodegen::visit_function_definition(Node *n)
 
 void HighLevelCodegen::visit_statement_list(Node *n)
 {
-  // TODO: implement
-
   for (auto i = n->cbegin(); i != n->cend(); ++i)
   {
     Node *statement = *i;
-
-    //  temperoray virtual registers
-    // struct vreg saved_vreg = get_cur_vreg();
     visit(statement);
-    // recover virtual registers
-    // set_cur_vreg(saved_vreg);
   }
 }
 
@@ -177,7 +170,6 @@ void HighLevelCodegen::visit_expression_statement(Node *n)
 
 void HighLevelCodegen::visit_return_statement(Node *n)
 {
-  // m_hl_iseq->append(new Instruction(HINS_jmp, Operand(Operand::LABEL, m_return_label_name)));
 }
 
 void HighLevelCodegen::visit_return_expression_statement(Node *n)
@@ -202,13 +194,11 @@ void HighLevelCodegen::visit_while_statement(Node *n)
   // generate the name of the label that while loop condition should target
   std::string m_while_loop = ".L" + std::to_string(get_next_label_num());
   std::string m_while_condition = ".L" + std::to_string(get_next_label_num());
-  // set_cur_loop_label_num(-2);
   // while condition statement
   m_hl_iseq->append(new Instruction(HINS_jmp, Operand(Operand::LABEL, m_while_condition)));
   // while loop
   m_hl_iseq->define_label(m_while_loop);
   // skip virtual register reset
-  // visit_children(n->get_kid(1));
   visit(n->get_kid(1));
   // while condition
   m_hl_iseq->define_label(m_while_condition);
@@ -227,7 +217,6 @@ void HighLevelCodegen::visit_do_while_statement(Node *n)
   // do condition
   visit(n->get_kid(1));
   // cjmp
-  // std::string m_while_loop = ".L" + std::to_string(get_cur_loop_label_num());
   m_hl_iseq->append(new Instruction(HINS_cjmp_t, n->get_kid(1)->get_operand(), Operand(Operand::LABEL, m_do_while_loop)));
 }
 
@@ -238,7 +227,6 @@ void HighLevelCodegen::visit_for_statement(Node *n)
   // generate the name of the label that while loop condition should target
   std::string m_for_loop = ".L" + std::to_string(get_next_label_num());
   std::string m_for_condition = ".L" + std::to_string(get_next_label_num());
-  // set_cur_loop_label_num(-2);
   //  for condition statement
   m_hl_iseq->append(new Instruction(HINS_jmp, Operand(Operand::LABEL, m_for_condition)));
   // for loop label
@@ -290,8 +278,6 @@ void HighLevelCodegen::visit_if_else_statement(Node *n)
 void HighLevelCodegen::visit_binary_expression(Node *n)
 {
   // temperoray virtual registers
-  // struct vreg saved_vreg = get_cur_vreg();
-  // visit_children(n);
   Node *opt = n->get_kid(0);
   Node *opd1_node = n->get_kid(1);
   Node *opd2_node = n->get_kid(2);
@@ -359,13 +345,10 @@ void HighLevelCodegen::visit_binary_expression(Node *n)
     Operand tmp_dst(Operand::VREG, get_next_local_vreg());
     n->set_operand(emit_basic_opt(optcode, tmp_dst, opd1, opd2, opd1_type));
   }
-  // // recover virtual registers
-  // set_cur_vreg(saved_vreg);
 }
 
 void HighLevelCodegen::visit_unary_expression(Node *n)
 {
-  // // TODO: implement
   Node *opd_node = n->get_kid(1);
   visit(n->get_kid(1));
   std::shared_ptr<Type> opd_type = opd_node->get_type();
@@ -373,29 +356,6 @@ void HighLevelCodegen::visit_unary_expression(Node *n)
   Operand opd = opd_node->get_operand();
 
   Node *opt = n->get_kid(0);
-  // // - ! ~
-  // if (opt->get_tag() == TOK_MINUS || opt->get_tag() == TOK_BITWISE_COMPL || opt->get_tag() == TOK_NOT)
-  // {
-  //   if (opd->is_integral())
-  //   {
-  //     if (opd->is_long())
-  //     {
-  //       res = opd;
-  //     }
-  //     else if (opd->get_basic_type_kind() < BasicTypeKind::INT)
-  //     {
-  //       // representing implicit
-  //       n->set_kid(1, opd_node = promote_to_int(opd_node));
-
-  //       res = std::make_shared<BasicType>(BasicTypeKind::INT, opd->is_signed());
-  //     }
-  //     n->set_lvalue(false);
-  //   }
-  //   else
-  //   {
-  //     SemanticError::raise(n->get_loc(), "error: improper usage of unary experssion");
-  //   }
-  // }
 
   if (opt->get_tag() == TOK_MINUS)
   {
@@ -419,7 +379,6 @@ void HighLevelCodegen::visit_unary_expression(Node *n)
       // if opd is already a memref, move to a new register, and ref it
       m_hl_iseq->append(new Instruction(HINS_mov_q, tmp_opt, opd));
 
-      // n->set_operand(emit_basic_opt(HINS_mov_q, tmp_opt, opd, src_type));
       n->set_operand(tmp_opt.to_memref());
     }
     else
@@ -465,7 +424,6 @@ void HighLevelCodegen::visit_function_call_expression(Node *n)
 
     // generate instructions, temporarily use opd1 as implicit converstions
     emit_basic_opt(HINS_mov_b, Operand(Operand::VREG, arg_vreg), param_opd, src_type);
-    // m_hl_iseq->append(new Instruction(HighLevelOpcode::HINS_mov_q, Operand(Operand::VREG, arg_vreg), param_opd));
     loop_counter++;
   }
   // call instruction
@@ -643,14 +601,7 @@ Operand HighLevelCodegen::emit_field_arithmetric(Operand base_opd, const std::sh
 Operand HighLevelCodegen::emit_basic_opt(HighLevelOpcode basic_code, Operand dst_opd, Operand src_opd, const std::shared_ptr<Type> &src_type)
 {
   HighLevelOpcode opcode;
-  // if (basic_code == HINS_mov_q)
-  // {
-  //   opcode == basic_code;
-  // }
-  // else
-  // {
   opcode = get_opcode(basic_code, src_type);
-  // }
   m_hl_iseq->append(new Instruction(opcode, dst_opd, src_opd));
   return m_hl_iseq->get_last_instruction()->get_operand(0);
 }

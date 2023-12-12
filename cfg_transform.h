@@ -69,7 +69,6 @@ private:
   std::map<ConstantValue, ValueNumber> m_const_to_vn;
   std::map<ValueNumber, ConstantValue> m_vn_to_const;
   std::map<Vreg, ValueNumber> m_vreg_to_vn;
-  // std::map<ValueNumber, std::set<Vreg>> m_vn_to_vregs;
   std::map<ValueNumber, std::list<Vreg>> m_vn_to_vregs;
 
   std::map<LVNKey, ValueNumber> m_key_to_vn;
@@ -158,22 +157,12 @@ public:
     {
       return -1;
     }
-    // return *m_vn_to_vregs[vn].begin();
     return m_vn_to_vregs[vn].front();
   }
   ValueNumber emit_vn_by_vreg(Vreg vreg)
   {
-    // if (vreg == 0)
-    // {
-    //   printf("debug!\n");
-    // }
     ValueNumber vn = emit_value_number();
     m_vreg_to_vn[vreg] = vn;
-    // auto res = m_vn_to_vregs[vn].insert(vreg);
-    // if (!res.second)
-    // {
-    //   RuntimeError::raise("Virtual register already exist!");
-    // }
     auto it = std::find(m_vn_to_vregs[vn].begin(), m_vn_to_vregs[vn].end(), vreg);
     if (it != m_vn_to_vregs[vn].end())
     {
@@ -197,7 +186,6 @@ public:
   }
   void add_vreg_by_vn(ValueNumber vn, Vreg vreg)
   {
-    // m_vn_to_vregs[vn].insert(vreg);
     auto it = std::find(m_vn_to_vregs[vn].begin(), m_vn_to_vregs[vn].end(), vreg);
     if (it != m_vn_to_vregs[vn].end())
     {
@@ -234,8 +222,6 @@ public:
 // LocalRegisterAllocation
 typedef int VirtualReg;
 typedef int Rank;
-// typedef int Location;
-// typedef int MachineReg;
 struct SpillLocation
 {
   int loc;
@@ -260,7 +246,6 @@ private:
   std::vector<std::pair<VirtualReg, Rank>> m_local_rank;
   unsigned long m_cur_rank = 1;
 
-  // std::stack<MachineReg> m_register_pool;
   std::queue<MachineReg> m_register_pool;
   std::map<VirtualReg, MachineReg> m_vreg_to_mreg;
   std::vector<SpillLocation> m_spill_location_pool;
@@ -268,15 +253,12 @@ private:
 
   void reset_local_state()
   {
-    // std::stack<MachineReg>().swap(m_register_pool);
     std::queue<MachineReg>().swap(m_register_pool);
     m_vreg_to_mreg.clear();
-    // m_spill_location_pool.clear();
     m_vreg_to_spill_loc.clear();
   };
 
   void prepare_register_pool(const InstructionSequence *orig_bb);
-  // void prepare_un_assignable_vreg_pool(const InstructionSequence *orig_bb);
   bool is_assignable_vreg(const Operand &opd, const InstructionSequence *orig_bb);
   bool is_eager_to_be_assigned(const Operand &opd, const InstructionSequence *orig_bb);
   bool is_eager_to_be_allocated(const Operand &opd, const InstructionSequence *orig_bb);
@@ -313,25 +295,10 @@ public:
   virtual std::shared_ptr<InstructionSequence>
   transform_basic_block(const InstructionSequence *orig_bb);
 
-  // virtual void visit_function_definition(Node *n);
-  // virtual void visit_statement_list(Node *n);
-  // virtual void visit_expression_statement(Node *n);
-  // virtual void visit_return_statement(Node *n);
-  // virtual void visit_return_expression_statement(Node *n);
   virtual void visit_while_statement(Node *n);
   virtual void visit_do_while_statement(Node *n);
   virtual void visit_for_statement(Node *n);
-  // virtual void visit_if_statement(Node *n);
-  // virtual void visit_if_else_statement(Node *n);
-  // virtual void visit_binary_expression(Node *n);
-  // virtual void visit_unary_expression(Node *n);
-  // virtual void visit_function_call_expression(Node *n);
-  // virtual void visit_field_ref_expression(Node *n);
-  // virtual void visit_indirect_field_ref_expression(Node *n);
-  // virtual void visit_array_element_ref_expression(Node *n);
   virtual void visit_variable_ref(Node *n);
-  // virtual void visit_literal_value(Node *n);
-  // virtual void visit_implicit_conversion(Node *n);
 };
 
 #endif // CFG_TRANSFORM_H

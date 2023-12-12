@@ -104,11 +104,6 @@ LVNOptimizationHighLevel::transform_basic_block(const InstructionSequence *orig_
     // if not a def operation, we don't have to optimize it.
     if ((opd_nums == 2 || opd_nums == 3))
     {
-      // if (orig_ins->get_operand(1).get_kind() == Operand::VREG && orig_ins->get_operand(1).get_base_reg() == 16 && orig_ins->get_operand(0).get_kind() == Operand::VREG_MEM)
-      if (orig_ins->get_operand(1).get_kind() == Operand::IMM_IVAL && orig_ins->get_operand(0).get_kind() == Operand::VREG && orig_ins->get_operand(0).get_base_reg() == 1)
-      {
-        // printf("debug here\n");
-      }
       // load value number for each operand
       load_value_numbers(orig_ins);
       // if spill
@@ -147,8 +142,6 @@ LVNOptimizationHighLevel::transform_basic_block(const InstructionSequence *orig_
           ValueNumber dst_vn = lookup_vn_by_operand(orig_ins->get_operand(0));
           set_vn_by_LVNKey(key, dst_vn);
         }
-
-        // printf("/* key: %d %d %d */\n", key.opcode, key.left_vn, key.right_vn);
       }
     }
     if (opd_nums == 2 || opd_nums == 3)
@@ -199,11 +192,6 @@ LVNOptimizationHighLevel::transform_basic_block(const InstructionSequence *orig_
           // for virtual register or memory reference
           else if (i >= 1 && (cur_opd.get_kind() == Operand::VREG || cur_opd.get_kind() == Operand::VREG_MEM))
           {
-            // search value number based on virtual register
-            // if (cur_opd.get_kind() == Operand::VREG_MEM)
-            // {
-            //   printf("debug\n");
-            // }
             Vreg best_vreg = lookup_min_vreg_by_vn(lookup_vn_by_vreg(cur_opd.get_base_reg()));
             if (best_vreg == -1)
             {
@@ -838,7 +826,6 @@ void LocalRegisterAllocation::allocate_machine_reg(Operand opd, const Instructio
   if (machine_reg == MREG_END)
   {
     machine_reg = sacrifice_a_temp_vreg(orig_bb, ins, main_seq);
-    // RuntimeError::raise("Used up!\n");
   }
 
   m_vreg_to_mreg[base_vr_n] = machine_reg;
@@ -928,8 +915,6 @@ MachineReg LocalRegisterAllocation::sacrifice_a_temp_vreg(const InstructionSeque
     }
 
     depth++;
-    // if (preserve_instruction)
-    //   result_iseq->append(orig_ins->duplicate());
   }
 
   // pick up a farthest one
@@ -1035,42 +1020,3 @@ void LocalRegisterAllocation::visit_do_while_statement(Node *n)
   visit_children(n);
   m_cur_rank = m_cur_rank / 10;
 }
-// void LocalRegisterAllocation::prepare_un_assignable_vreg_pool(const InstructionSequence *orig_bb)
-// {
-//   // LiveVregs needs a pointer to a BasicBlock object to get a dataflow
-//   // fact for that basic block
-//   const BasicBlock *orig_bb_as_basic_block =
-//       static_cast<const BasicBlock *>(orig_bb);
-
-//   // for (auto i = orig_bb->cbegin(); i != orig_bb->cend(); ++i)
-//   // {
-//   //   Instruction *orig_ins = *i;
-//   //   if (HighLevel::is_def(orig_ins))
-//   //   {
-//   Operand dest = orig_ins->get_operand(0);
-
-//   LiveVregs::FactType live_end =
-//       m_live_vregs.get_fact_at_end_of_block(orig_bb_as_basic_block);
-
-//   if (!live_end.test(dest.get_base_reg()) && dest.get_base_reg() > 9)
-//     // destination register is dead immediately after this instruction,
-//     // so it can be eliminated
-//     preserve_instruction = false;
-
-//   // tease duplicated mov out
-//   if (match_opcode(orig_ins->get_opcode(), HINS_mov_b))
-//   {
-//     Operand src = orig_ins->get_operand(1);
-//     if (dest.get_kind() == Operand::VREG && src.get_kind() == Operand::VREG)
-//     {
-//       if (dest.get_base_reg() == src.get_base_reg())
-//         // preserve_instruction = false;
-//         ;
-//     }
-//   }
-//   //   }
-
-//   //   if (preserve_instruction)
-//   //     result_iseq->append(orig_ins->duplicate());
-//   // }
-// }

@@ -6,7 +6,8 @@
 #include "live_mregs.h"
 #include "cfg_transform.h"
 
-class PeepholeLowLevel : public ControlFlowGraphTransform {
+class PeepholeLowLevel : public ControlFlowGraphTransform
+{
 private:
   // liveness info about machine registers
   LiveMregs m_live_mregs;
